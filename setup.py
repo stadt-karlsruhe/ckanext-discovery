@@ -80,7 +80,7 @@ setup(
     # pip to create the appropriate form of executable for the target platform.
     entry_points='''
         [ckan.plugins]
-        discovery=ckanext.discovery.plugin:DiscoveryPlugin
+        solr_query_config=ckanext.discovery.plugins.solr_query_config:SolrQueryConfigPlugin
 
         [babel.extractors]
         ckan = ckan.lib.extract:extract_ckan
