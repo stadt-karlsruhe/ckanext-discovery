@@ -25,17 +25,22 @@ Example:
 
 {% set max_num = max_num or 5 %}
 {% set min_score = min_score or 0 %}
-{% set pkg_dicts = h.discovery_similar_datasets(id, max_num=max_num, min_score=min_score) %}
+{% set pkg_dicts = h.discovery_similar_datasets(id, max_num=max_num,
+                                                min_score=min_score) %}
 
 {% block similar_datasets %}
     <section class="module module-narrow module-shallow similar-datasets">
     {% block similar_datasets_title %}
-        <h2 class="module-heading"><i class="icon-medium icon-exchange"></i>{{ _('Similar datasets') }}</h2>
+        <h2 class="module-heading">
+            <i class="icon-medium icon-exchange"></i>
+            {{ _('Similar datasets') }}
+        </h2>
     {% endblock %}
     {% block similar_datasets_list %}
         <ul class="nav nav-simple">
             {% for pkg_dict in pkg_dicts %}
-                {% set url = h.url_for(controller='package', action='read', id=pkg_dict.name) %}
+                {% set url = h.url_for(controller='package', action='read',
+                                       id=pkg_dict.name) %}
                 {% set notes = h.truncate(pkg_dict.notes, 200) %}
                 <li class="nav-item">
                     {% block similar_dataset scoped %}

@@ -10,6 +10,8 @@ import ckan.plugins as plugins
 import ckan.plugins.toolkit as toolkit
 from ckan.lib.search.common import make_connection
 
+from .. import Translation
+
 
 log = logging.getLogger(__name__)
 
@@ -43,9 +45,10 @@ def get_similar_datasets(id, max_num=5, min_score=0):
     return [json.loads(doc['validated_data_dict']) for doc in docs]
 
 
-class SimilarDatasets(plugins.SingletonPlugin):
+class SimilarDatasets(plugins.SingletonPlugin, Translation):
     plugins.implements(plugins.IConfigurer)
     plugins.implements(plugins.ITemplateHelpers)
+    plugins.implements(plugins.ITranslation)
 
     #
     # IConfigurer
