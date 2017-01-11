@@ -8,10 +8,14 @@ Parameters:
     id: ID of the package for which similar datasets should be listed. This
         must be the actual ID, passing the name is not supported.
 
-    max_num: Maximum number of datasets to list. Defaults to 5.
+    max_num: Maximum number of datasets to list. Defaults to the value of the
+        configuration option ``ckanext.discovery.similar_datasets.max_num`` or
+        5 if that option is not set.
 
     min_score: Minimum required score. Datasets with a lower similarity score
-        are not listed. Defaults to 0.
+        are not listed. Defaults to the value of the configuration option
+        ``ckanext.discovery.similar_datasets.min_score`` or 0 if that option is
+        not set.
 
 
 Example:
@@ -23,10 +27,9 @@ Example:
 
 #}
 
-{% set max_num = max_num or 5 %}
-{% set min_score = min_score or 0 %}
-{% set pkg_dicts = h.discovery_similar_datasets(id, max_num=max_num,
-                                                min_score=min_score) %}
+{% set max_num = max_num or h.discovery_get_config('similar_datasets.max_num', 5)|int %}
+{% set min_score = min_score or h.discovery_get_config('similar_datasets.min_score', 0)|float %}
+{% set pkg_dicts = h.discovery_similar_datasets(id, max_num=max_num, min_score=min_score) %}
 
 {% block similar_datasets %}
     <section class="module module-narrow module-shallow similar-datasets">
