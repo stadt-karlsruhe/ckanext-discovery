@@ -1,12 +1,15 @@
 {#
 A tag cloud.
 
-Shows the most popular tags in alphabetical order scaled according to their popularity.
+Shows the most popular tags in alphabetical order scaled according to their
+popularity.
 
 
 Parameters:
 
-    num_tags: Optional number of tags to show. Defaults to 20.
+    num_tags: Optional number of tags to show. Defaults to the value of the
+        configuration option ``ckanext.discovery.tag_cloud.num_tags`` or
+        20 if that option is not set.
 
 
 Example:
@@ -15,7 +18,7 @@ Example:
 
 #}
 {% resource 'tag_cloud/tag_cloud.css' %}
-{% set num_tags = num_tags or 20 %}
+{% set num_tags = num_tags or h.discovery_get_config('tag_cloud.num_tags', 20)|int %}
 {% set tags = h.discovery_bin_tags(num_tags) %}
  <ul class="discovery-tag-cloud">
   {% for tag in tags.keys()|sort %}

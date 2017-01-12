@@ -159,7 +159,18 @@ the following `template snippet`_::
     {% snippet 'ckanext-discovery/snippets/tag_cloud.html', num_tags=10 %}
 
 The ``num_tags`` specifies the number of tags in the tag cloud. It is optional
-and defaults to 20.
+and defaults to the setting of the ``ckanext.discovery.tag_cloud.num_tags``
+option (see below).
+
+Configuration
+-------------
+The plugin offers one setting that can be configured via CKAN's
+`configuration INI`_::
+
+    # Number of tags to show in the tag cloud. Defaults to 20 and can be
+    # overriden by passing a ``num_tags`` parameter to the tag cloud template
+    # snippet.
+    ckanext.discovery.tag_cloud.num_tags = 10
 
 
 .. _configuration INI: http://docs.ckan.org/en/latest/maintaining/configuration.html#ckan-configuration-file
