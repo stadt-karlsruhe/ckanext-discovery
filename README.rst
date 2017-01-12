@@ -19,39 +19,6 @@ of this extension::
     plugins = ... discovery
 
 
-``solr_query_config``
-+++++++++++++++++++++
-This plugin allows you to set Solr query parameters via entries in CKAN's
-`configuration INI`_. You can either specify a default value for a parameter
-(which is only used if the parameter isn't already set in the current query)
-or you can force a parameter to a certain value (overriding it if it is already
-set).
-
-Installation
-------------
-Simply add ``discovery`` and ``solr_query_config`` to the list of plugins in
-CKAN's `configuration INI`_::
-
-    plugins = ... discovery solr_query_config
-
-Configuration
--------------
-To specify a default value, prefix the parameter name with
-``ckanext.discovery.solr.default.``::
-
-    # By default, sort by metadata modification timestamp
-    ckanext.discovery.solr.default.sort = metadata_modified asc
-
-Similarly, a value can be forced using the prefix
-``ckanext.discovery.solr.force.``::
-
-    # Always use a custom Solr query handler
-    ckanext.discovery.solr.force.defType = my_special_query_handler
-
-Note that only those Solr parameters that are accepted by the package_search_
-API function can be set via this plugin.
-
-
 ``similar_datasets``
 ++++++++++++++++++++
 This plugin displays a list of similar datasets in the sidebar of the dataset
@@ -118,7 +85,6 @@ detailed view of each dataset::
 
     sudo service apache2 restart
 
-
 Configuration
 -------------
 The plugin offers two settings that can be configured in CKAN's
@@ -134,9 +100,72 @@ The plugin offers two settings that can be configured in CKAN's
     ckanext.discovery.similar_datasets.min_score = 0.6
 
 
+``solr_query_config``
++++++++++++++++++++++
+This plugin allows you to set Solr query parameters via entries in CKAN's
+`configuration INI`_. You can either specify a default value for a parameter
+(which is only used if the parameter isn't already set in the current query)
+or you can force a parameter to a certain value (overriding it if it is already
+set).
+
+Installation
+------------
+Simply add ``solr_query_config`` to the list of plugins in CKAN's
+`configuration INI`_::
+
+    plugins = ... solr_query_config
+
+Configuration
+-------------
+To specify a default value, prefix the parameter name with
+``ckanext.discovery.solr.default.``::
+
+    # By default, sort by metadata modification timestamp
+    ckanext.discovery.solr.default.sort = metadata_modified asc
+
+Similarly, a value can be forced using the prefix
+``ckanext.discovery.solr.force.``::
+
+    # Always use a custom Solr query handler
+    ckanext.discovery.solr.force.defType = my_special_query_handler
+
+Note that only those Solr parameters that are accepted by the package_search_
+API function can be set via this plugin.
+
+
+``tag_cloud``
++++++++++++++
+This plugin shows links for the most frequent tags scaled according to their
+frequency:
+
+.. image:: doc/tag_cloud.png
+    :alt: Screenshot of the tag_cloud plugin
+
+Installation
+------------
+Simply add ``discovery`` and ``tag_cloud`` to the list of plugins in CKAN's
+`configuration INI`_::
+
+    plugins = ... discovery tag_cloud
+
+Usage
+-----
+The plugin automatically replaces the list of the most frequent tags on CKAN's
+default front page with a tag cloud.
+
+If you want to use the tag cloud in a different part of the site you can use
+the following `template snippet`_::
+
+    {% snippet 'ckanext-discovery/snippets/tag_cloud.html', num_tags=10 %}
+
+The ``num_tags`` specifies the number of tags in the tag cloud. It is optional
+and defaults to 20.
+
+
 .. _configuration INI: http://docs.ckan.org/en/latest/maintaining/configuration.html#ckan-configuration-file
 .. _package_search: http://docs.ckan.org/en/latest/api/index.html#ckan.logic.action.get.package_search
 .. _More Like This: https://cwiki.apache.org/confluence/display/solr/MoreLikeThis
 .. _MoreLikeThisHandler: https://cwiki.apache.org/confluence/display/solr/MoreLikeThis#MoreLikeThis-ParametersfortheMoreLikeThisHandler
 .. _term vector storage: https://cwiki.apache.org/confluence/display/solr/Field+Type+Definitions+and+Properties#FieldTypeDefinitionsandProperties-FieldDefaultProperties
+.. _template snippet: http://docs.ckan.org/en/latest/theming/templates.html#snippets
 

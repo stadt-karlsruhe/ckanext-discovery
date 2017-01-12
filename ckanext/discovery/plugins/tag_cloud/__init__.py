@@ -14,7 +14,7 @@ from ckan.common import config
 log = logging.getLogger(__name__)
 
 
-def bin_tags(num_tags=50, num_bins=5):
+def bin_tags(num_tags=20, num_bins=5):
     '''
     Distribute tags into bins according to their frequency.
 
