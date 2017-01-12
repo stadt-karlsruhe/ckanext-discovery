@@ -5,19 +5,44 @@ from __future__ import (absolute_import, division, print_function,
 
 import logging
 
-from .. import get_config
+import ckan.plugins as plugins
+import ckan.plugins.toolkit as toolkit
+
+from .model import SearchQuery
 
 
 log = logging.getLogger(__name__)
 
 
-def get_language():
-    '''
-    Get language for text search.
+class SearchSuggestionsPlugin(plugins.SingletonPlugin):
+    plugins.implements(plugins.IPackageController, inherit=True)
 
-    Returns the value of the configuration setting
-    ``ckanext.discovery.search_suggestions.language`` or ``'english'``
-    if that option is not set.
-    '''
-    return get_config('search_suggestions.language', 'english')
+    #
+    # IPackageController
+    #
+
+    def after_search(self, search_results, search_params):
+        q = search_params['q']
+        fq = search_params['fq']
+
+        # Try to figure out whether this is a user-initiated, text-based search
+        # request (and not a programmatically triggered one, tag search, ...).
+        # See
+        # https://github.com/ckan/ckanext-searchhistory/issues/1#issue-32079108
+        c = toolkit.c
+        try:
+            if (
+                c.controller != 'package'
+                or c.action != 'search'
+                or (q or '').strip() in (':', '*:*')
+            ):
+                return search_results
+        except TypeError:
+            # Web context not ready. Happens, for example, in paster commands.
+            return search_results
+
+        log.debug('Remembering user search query "{}"'.format(q))
+        SearchQuery.create(q)
+
+        return search_results
 

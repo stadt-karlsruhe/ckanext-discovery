@@ -10,7 +10,7 @@ from sqlalchemy.ext.declarative import declarative_base
 
 from ckan.model.meta import engine, Session
 
-from . import get_language
+from .. import get_config
 
 
 log = logging.getLogger(__name__)
@@ -32,6 +32,17 @@ def _execute(sql, **kwargs):
         return conn.execute(text(sql), **kwargs)
 
 
+def _get_language():
+    '''
+    Get language for text search.
+
+    Returns the value of the configuration setting
+    ``ckanext.discovery.search_suggestions.language`` or ``'english'``
+    if that option is not set.
+    '''
+    return get_config('search_suggestions.language', 'english')
+
+
 class SearchQuery(Base):
     '''
     A search query.
@@ -43,6 +54,16 @@ class SearchQuery(Base):
     # The search string. Named after the Solr parameter of the same name, from
     # which the values are taken.
     q = Column(types.UnicodeText, nullable=False)
+
+    @classmethod
+    def create(cls, q):
+        '''
+        Create and commit an instance.
+        '''
+        query = cls(q=q)
+        Session.add(query)
+        Session.commit()
+        return query
 
     @classmethod
     def suggest(cls, terms, limit=10, min_score=0):
@@ -83,7 +104,7 @@ class SearchQuery(Base):
             WHERE rank >= :min_rank
             LIMIT :limit;
             '''.format(table=cls.__tablename__),
-            language=get_language(),
+            language=_get_language(),
             terms = ' | '.join(terms),
             limit=limit,
             min_rank=min_score,
@@ -111,6 +132,6 @@ def create_tables():
         CREATE INDEX {index} ON {table}
             USING GIN (to_tsvector(:language, q));
         '''.format(table=table, index=table + '_ts_index'),
-        language=get_language(),
+        language=_get_language(),
     )
 

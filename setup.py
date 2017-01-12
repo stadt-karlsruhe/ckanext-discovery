@@ -81,8 +81,9 @@ setup(
     entry_points='''
         [ckan.plugins]
         discovery=ckanext.discovery.plugins.discovery:DiscoveryPlugin
-        solr_query_config=ckanext.discovery.plugins.solr_query_config:SolrQueryConfigPlugin
+        search_suggestions=ckanext.discovery.plugins.search_suggestions:SearchSuggestionsPlugin
         similar_datasets=ckanext.discovery.plugins.similar_datasets:SimilarDatasetsPlugin
+        solr_query_config=ckanext.discovery.plugins.solr_query_config:SolrQueryConfigPlugin
         tag_cloud=ckanext.discovery.plugins.tag_cloud:TagCloudPlugin
 
         [babel.extractors]
