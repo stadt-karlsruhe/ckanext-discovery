@@ -9,6 +9,16 @@ FIXME
 Plugins
 =======
 
+``discovery``
++++++++++++++
+This plugin doesn't provide any direct functionallity on its own but contains
+utilities required by the other plugins. It is therefore required that you
+activate it in CKAN's `configuration INI`_ if you want to use any other plugin
+of this extension::
+
+    plugins = ... discovery
+
+
 ``solr_query_config``
 +++++++++++++++++++++
 This plugin allows you to set Solr query parameters via entries in CKAN's
@@ -19,10 +29,10 @@ set).
 
 Installation
 ------------
-Simply add ``solr_query_config`` to the list of plugins in CKAN's
-`configuration INI`_::
+Simply add ``discovery`` and ``solr_query_config`` to the list of plugins in
+CKAN's `configuration INI`_::
 
-    plugins = ... solr_query_config
+    plugins = ... discovery solr_query_config
 
 Configuration
 -------------
@@ -98,10 +108,10 @@ future this is done automatically)::
     . /usr/lib/ckan/default/bin/activate
     paster --plugin=ckan search-index rebuild -c /etc/ckan/default/production.ini
 
-You can now add ``similar_datasets`` to your list of plugins in CKAN's
-`configuration INI`_::
+Now add ``discovery`` and ``similar_datasets`` to your list of plugins in
+CKAN's `configuration INI`_::
 
-    plugins = ... similar_datasets
+    plugins = ... discovery similar_datasets
 
 After restarting CKAN the list of similar datasets should be displayed on the
 detailed view of each dataset::

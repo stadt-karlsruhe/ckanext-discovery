@@ -80,6 +80,7 @@ setup(
     # pip to create the appropriate form of executable for the target platform.
     entry_points='''
         [ckan.plugins]
+        discovery=ckanext.discovery.plugins.discovery:DiscoveryPlugin
         solr_query_config=ckanext.discovery.plugins.solr_query_config:SolrQueryConfigPlugin
         similar_datasets=ckanext.discovery.plugins.similar_datasets:SimilarDatasetsPlugin
 

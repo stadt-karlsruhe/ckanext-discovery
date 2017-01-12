@@ -6,12 +6,9 @@ from __future__ import (absolute_import, division, print_function,
 import logging
 import json
 
-from ckan.common import config
 import ckan.plugins as plugins
 import ckan.plugins.toolkit as toolkit
 from ckan.lib.search.common import make_connection
-
-from .. import Translation
 
 
 log = logging.getLogger(__name__)
@@ -46,19 +43,9 @@ def get_similar_datasets(id, max_num=5, min_score=0):
     return [json.loads(doc['validated_data_dict']) for doc in docs]
 
 
-def get_config(key, default=None):
-    '''
-    Get a configuration value.
-
-    The key is automatically prefixed with ``ckanext.discovery.``.
-    '''
-    return config.get('ckanext.discovery.' + key, default)
-
-
-class SimilarDatasetsPlugin(plugins.SingletonPlugin, Translation):
+class SimilarDatasetsPlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IConfigurer)
     plugins.implements(plugins.ITemplateHelpers)
-    plugins.implements(plugins.ITranslation)
 
     #
     # IConfigurer
@@ -74,6 +61,5 @@ class SimilarDatasetsPlugin(plugins.SingletonPlugin, Translation):
     def get_helpers(self):
         return {
             'discovery_similar_datasets': get_similar_datasets,
-            'discovery_get_config': get_config,
         }
 
