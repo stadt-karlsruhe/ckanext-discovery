@@ -83,6 +83,7 @@ setup(
         discovery=ckanext.discovery.plugins.discovery:DiscoveryPlugin
         solr_query_config=ckanext.discovery.plugins.solr_query_config:SolrQueryConfigPlugin
         similar_datasets=ckanext.discovery.plugins.similar_datasets:SimilarDatasetsPlugin
+        tag_cloud=ckanext.discovery.plugins.tag_cloud:TagCloudPlugin
 
         [babel.extractors]
         ckan = ckan.lib.extract:extract_ckan

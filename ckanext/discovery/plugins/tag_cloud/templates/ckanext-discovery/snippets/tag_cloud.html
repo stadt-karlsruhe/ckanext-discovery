@@ -1,0 +1,24 @@
+{#
+A tag cloud.
+
+Shows the most popular tags in alphabetical order scaled according to their popularity.
+
+
+Parameters:
+
+    num_tags: Number of tags to show. Defaults to 50.
+
+
+Example:
+
+    {% snippet 'ckanext-discovery/snippets/tag_cloud.html', num_tags=20 %}
+
+#}
+{% resource 'tag_cloud/tag_cloud.css' %}
+{% set num_tags = num_tags or 50 %}
+{% set tags = h.discovery_bin_tags(num_tags) %}
+ <ul class="discovery-tag-cloud">
+  {% for tag in tags.keys()|sort %}
+    <li><a class="level-{{ tags[tag]|int }}" href="{% url_for controller='package', action='search', tags=tag %}">{{ tag }}</a></li>
+  {% endfor %}
+ </ul>
