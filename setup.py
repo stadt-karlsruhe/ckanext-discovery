@@ -87,6 +87,9 @@ setup(
 
         [babel.extractors]
         ckan = ckan.lib.extract:extract_ckan
+
+        [paste.paster_command]
+        search_suggestions = ckanext.discovery.plugins.search_suggestions.paster:SearchSuggestionsCommand
     ''',
 
     # If you are changing from the default layout of your extension, you may
