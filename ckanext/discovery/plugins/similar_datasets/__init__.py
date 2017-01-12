@@ -55,7 +55,7 @@ def get_config(key, default=None):
     return config.get('ckanext.discovery.' + key, default)
 
 
-class SimilarDatasets(plugins.SingletonPlugin, Translation):
+class SimilarDatasetsPlugin(plugins.SingletonPlugin, Translation):
     plugins.implements(plugins.IConfigurer)
     plugins.implements(plugins.ITemplateHelpers)
     plugins.implements(plugins.ITranslation)

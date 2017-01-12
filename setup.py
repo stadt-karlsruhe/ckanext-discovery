@@ -81,7 +81,7 @@ setup(
     entry_points='''
         [ckan.plugins]
         solr_query_config=ckanext.discovery.plugins.solr_query_config:SolrQueryConfigPlugin
-        similar_datasets=ckanext.discovery.plugins.similar_datasets:SimilarDatasets
+        similar_datasets=ckanext.discovery.plugins.similar_datasets:SimilarDatasetsPlugin
 
         [babel.extractors]
         ckan = ckan.lib.extract:extract_ckan
