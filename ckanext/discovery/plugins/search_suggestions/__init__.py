@@ -8,6 +8,7 @@ import logging
 import ckan.plugins as plugins
 import ckan.plugins.toolkit as toolkit
 
+from .action import search_suggest_action, search_suggest_auth
 from .model import SearchQuery
 
 
@@ -16,6 +17,8 @@ log = logging.getLogger(__name__)
 
 class SearchSuggestionsPlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IPackageController, inherit=True)
+    plugins.implements(plugins.IActions)
+    plugins.implements(plugins.IAuthFunctions)
 
     #
     # IPackageController
@@ -45,4 +48,23 @@ class SearchSuggestionsPlugin(plugins.SingletonPlugin):
         SearchQuery.create(q)
 
         return search_results
+
+    #
+    # IActions
+    #
+
+    def get_actions(self):
+        return {
+            'discovery_search_suggest': search_suggest_action,
+        }
+
+
+    #
+    # IAuthFunctions
+    #
+
+    def get_auth_functions(self):
+        return {
+            'discovery_search_suggest': search_suggest_auth,
+        }
 

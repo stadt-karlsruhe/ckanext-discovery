@@ -76,8 +76,9 @@ class SearchQuery(Base):
 
         Suggestions with a score below ``min_score`` are not listed.
 
-        The return value is a list of suggested search queries, sorted
-        descendingly by their similarity to the given terms.
+        The return value is a list of suggested search queries (as
+        strings), sorted descendingly by their similarity to the given
+        terms.
         '''
         # The following query first finds the rows that contain at least one of
         # the terms. These rows are then sorted by score/rank, which is done in
@@ -112,7 +113,7 @@ class SearchQuery(Base):
         ids = [r[0] for r in results]
         queries = {q.id: q
                    for q in Session.query(cls).filter(cls.id.in_(ids)).all()}
-        return ids, [queries[id] for id in ids]
+        return [queries[id].q for id in ids]
 
 
 def create_tables():
