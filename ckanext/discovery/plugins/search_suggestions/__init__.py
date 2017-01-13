@@ -16,9 +16,19 @@ log = logging.getLogger(__name__)
 
 
 class SearchSuggestionsPlugin(plugins.SingletonPlugin):
+    plugins.implements(plugins.IConfigurer)
     plugins.implements(plugins.IPackageController, inherit=True)
     plugins.implements(plugins.IActions)
     plugins.implements(plugins.IAuthFunctions)
+
+    #
+    # IConfigurer
+    #
+
+    def update_config(self, config_):
+        toolkit.add_template_directory(config_, 'templates')
+        # See https://github.com/ckan/ckan/issues/3397 for `b` prefixes
+        toolkit.add_resource(b'fanstatic', b'discovery_search_suggestions')
 
     #
     # IPackageController

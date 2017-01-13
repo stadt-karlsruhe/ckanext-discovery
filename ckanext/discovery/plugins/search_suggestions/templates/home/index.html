@@ -1,0 +1,13 @@
+{% ckan_extends %}
+
+{#
+Make sure that our resources are loaded when the search box on the front page
+is displayed. Ideally this should go into `home/snippets/search.html`, but that
+template doesn't contain any blocks and overwriting it completely would
+interfere with the tag_cloud plugin.
+#}
+{% block content %}
+    {% resource 'discovery_search_suggestions/search_suggestions' %}
+    {{ super() }}
+{% endblock %}
+
