@@ -44,6 +44,13 @@ class SearchSuggestionsPlugin(plugins.SingletonPlugin):
             # Web context not ready. Happens, for example, in paster commands.
             return search_results
 
+        # TODO: If a user performs a text-based search and then continuously
+        # refines the result via facets then we end up with many entries for
+        # basically the same search, which might screw up our scoring.
+
+        # TODO: We should normalize search queries so that equivalent queries
+        # are scored correctly.
+
         log.debug('Remembering user search query "{}"'.format(q))
         SearchQuery.create(q)
 

@@ -81,26 +81,28 @@ class SearchQuery(Base):
         terms.
         '''
         # The following query first finds the rows that contain at least one of
-        # the terms. These rows are then sorted by score/rank, which is done in
-        # a separate query to avoid rank computations for all those rows that
-        # don't contain a term. Finally, rows with a score less than
-        # `min_score` are dropped. This is again done in a separate query to
-        # avoid the repetition of the call to `ts_rank`, see
-        # http://stackoverflow.com/a/12866110/857390).
+        # the terms. These rows are then sorted by score/rank (ties are decided
+        # by the frequency of the query), which is done in a separate query to
+        # avoid rank computations for all those rows that don't contain a term.
+        # Finally, rows with a score less than `min_score` are dropped. This is
+        # again done in a separate query to avoid the repetition of the call to
+        # `ts_rank`, see http://stackoverflow.com/a/12866110/857390).
         results = _execute(
             '''
             SELECT *
             FROM (
                 SELECT
-                    match.id AS id,
+                    match.q AS q,
                     ts_rank(to_tsvector(:language, match.q),
-                            to_tsquery(:language, :terms)) AS rank
+                            to_tsquery(:language, :terms)) AS rank,
+                    match.count AS count
                 FROM (
-                    SELECT id, q
+                    SELECT q, COUNT(q) AS count
                     FROM {table}
                     WHERE to_tsvector(:language, q) @@ to_tsquery(:language, :terms)
+                    GROUP BY q
                 ) AS match
-                ORDER BY rank DESC
+                ORDER BY rank DESC, count DESC
             ) AS sorted
             WHERE rank >= :min_rank
             LIMIT :limit;
@@ -110,10 +112,7 @@ class SearchQuery(Base):
             limit=limit,
             min_rank=min_score,
         )
-        ids = [r[0] for r in results]
-        queries = {q.id: q
-                   for q in Session.query(cls).filter(cls.id.in_(ids)).all()}
-        return [queries[id].q for id in ids]
+        return [r[0] for r in results]
 
 
 def create_tables():
