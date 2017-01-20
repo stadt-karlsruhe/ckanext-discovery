@@ -6,6 +6,7 @@ $(function () {
   // search bar used in the body.
   $('.site-search input, .search').autocomplete({
     delay: 500,
+    html: true,
     minLength: 2,
     source: function (request, response) {
       var url = ckan.SITE_ROOT + '/api/3/action/discovery_search_suggest';

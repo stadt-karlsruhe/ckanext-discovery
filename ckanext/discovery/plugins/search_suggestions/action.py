@@ -125,8 +125,8 @@ def search_suggest_action(context, data_dict):
         # whether the last word is a known term because in that case we take it
         # into account during context similarity scoring.
         try:
-            ac_terms = [SearchTerm.one(term==words[-1])]
-        except NoResultsFound:
+            ac_terms = [SearchTerm.one(term=words[-1])]
+        except NoResultFound:
             ac_terms = []
     else:
         ac_terms = SearchTerm.filter(SearchTerm.term.like(words[-1] + '%'))
@@ -189,11 +189,10 @@ def search_suggest_action(context, data_dict):
     suggestions = sorted(scores.iterkeys(), key=scores.get, reverse=True)
     suggestions = list(suggestions)[:limit]
     suggestions = [' '.join([t.term for t in terms]) for terms in suggestions]
-    if not ac_terms:
-        prefix = ' '.join(query) + ' '
+    if ac_terms:
+        prefix = ' '.join(query)
+        suggestions = [s[len(words[-1]):] for s in suggestions]
     else:
-        prefix = ' '.join(query[:-1]) + ' '
-    return ['{} {}'.format(prefix, s) for s in suggestions]
-
-    # FIXME: Add markup to distinguish existing text and suggestions
+        prefix = ' '.join(query) + ' '
+    return ['{}<strong>{}</strong>'.format(prefix, s) for s in suggestions]
 
