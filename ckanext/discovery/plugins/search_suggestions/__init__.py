@@ -7,12 +7,28 @@ import logging
 
 import ckan.plugins as plugins
 import ckan.plugins.toolkit as toolkit
+from ckan.model.meta import Session
 
 from .action import search_suggest_action, search_suggest_auth
-from .model import SearchQuery
+from .model import SearchTerm, CoOccurrence, normalize_term
 
 
 log = logging.getLogger(__name__)
+
+
+def store_query(q):
+    '''
+    Store a search query in the database.
+
+    ``q`` is a search query as a string.
+    '''
+    term_strings = sorted(set(normalize_term(t) for t in q.split()))
+    term_objects = [SearchTerm.get_or_create(term=t) for t in term_strings]
+    for i, term1 in enumerate(term_objects):
+        term1.count += 1
+        for term2 in term_objects[i + 1:]:
+            CoOccurrence.get_or_create(term1=term1, term2=term2).count += 1
+    Session.commit()
 
 
 class SearchSuggestionsPlugin(plugins.SingletonPlugin):
@@ -58,11 +74,8 @@ class SearchSuggestionsPlugin(plugins.SingletonPlugin):
         # refines the result via facets then we end up with many entries for
         # basically the same search, which might screw up our scoring.
 
-        # TODO: We should normalize search queries so that equivalent queries
-        # are scored correctly.
-
         log.debug('Remembering user search query "{}"'.format(q))
-        SearchQuery.create(q)
+        store_query(q)
 
         return search_results
 

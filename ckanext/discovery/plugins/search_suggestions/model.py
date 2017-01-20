@@ -4,13 +4,15 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import logging
+import re
 
-from sqlalchemy import Column, types, text
+from sqlalchemy import Column, types, ForeignKey
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship
+from sqlalchemy.orm.exc import NoResultFound
 
-from ckan.model.meta import engine, Session
-
-from .. import get_config
+from ckan.model.meta import Session
 
 
 log = logging.getLogger(__name__)
@@ -18,101 +20,113 @@ log = logging.getLogger(__name__)
 Base = declarative_base()
 
 
-def _execute(sql, **kwargs):
+class Object(Base):
     '''
-    Execute a raw SQL string.
-
-    Keyword arguments can be used to provide values for placeholders::
-
-        _execute('SELECT foo FROM bar WHERE x > :value;', value=20)
-
-    Returns a ``ResultProxy``.
+    Base class for ORM classes.
     '''
-    with engine.connect() as conn:
-        return conn.execute(text(sql), **kwargs)
+    __abstract__ = True
 
+    # Based on http://stackoverflow.com/a/37419325/857390
+    @classmethod
+    def get_or_create(cls, create_kwargs=None, **kwargs):
+        '''
+        Get an instance or create it.
 
-def _get_language():
-    '''
-    Get language for text search.
-
-    Returns the value of the configuration setting
-    ``ckanext.discovery.search_suggestions.language`` or ``'english'``
-    if that option is not set.
-    '''
-    return get_config('search_suggestions.language', 'english')
-
-
-class SearchQuery(Base):
-    '''
-    A search query.
-    '''
-    __tablename__ = 'discovery_searchquery'
-
-    id = Column(types.Integer, primary_key=True)
-
-    # The search string. Named after the Solr parameter of the same name, from
-    # which the values are taken.
-    q = Column(types.UnicodeText, nullable=False)
+        At first all keyword arguments are used to search for a single
+        instance. If that instance is found it is returned. If no
+        instance is found then it is created using the keyword arguments
+        and any additional arguments given in the ``create_kwargs``
+        dict. The created instance is then returned.
+        '''
+        if not kwargs:
+            raise ValueError('No filter keyword arguments.')
+        try:
+            # First assume that the object already exists
+            return cls.one(**kwargs)
+        except NoResultFound:
+            # Since the object doesn't exist, try to create it
+            kwargs.update(create_kwargs or {})
+            obj = cls(**kwargs)
+            try:
+                with Session.begin_nested():
+                    Session.add(obj)
+                return obj
+            except IntegrityError as e:
+                log.exception(e)
+                # Assume someone has raced the object creation
+                return cls.one(**kwargs)
 
     @classmethod
-    def create(cls, q):
-        '''
-        Create and commit an instance.
-        '''
-        query = cls(q=q)
-        Session.add(query)
-        Session.commit()
-        return query
+    def one(cls, **kwargs):
+        return Session.query(cls).filter_by(**kwargs).one()
 
     @classmethod
-    def suggest(cls, terms, limit=10, min_score=0):
+    def filter_by(cls, **kwargs):
+        return Session.query(cls).filter_by(**kwargs)
+
+    @classmethod
+    def filter(cls, *args, **kwargs):
+        return Session.query(cls).filter(*args, **kwargs)
+
+
+def normalize_term(term):
+    '''
+    Normalize a search term.
+
+    ``term`` is a string.
+    '''
+    term = term.strip().lower()
+    return re.sub(r'[\W_]', '', term, flags=re.UNICODE)
+
+
+class SearchTerm(Object):
+    '''
+    A single search term.
+    '''
+    __tablename__ = 'discovery_searchterm'
+    id = Column(types.Integer, primary_key=True, nullable=False)
+    term = Column(types.UnicodeText, unique=True, nullable=False, index=True)
+    count = Column(types.Integer, default=0, nullable=False)
+
+    def __repr__(self):
+        return '<{} "{}">'.format(self.__class__.__name__,
+                                  self.term.encode('utf-8'))
+
+
+class CoOccurrence(Object):
+    '''
+    Co-occurrences of two search terms.
+
+    The corresponding table represents a co-occurrence matrix. Since
+    the matrix is symmetrical, only one half of it has to be stored.
+    This is achieved by sorting the two terms of a ``CoOccurrence`` so
+    that the first term is lexicographically smaller than the second.
+    '''
+    __tablename__ = 'discovery_cooccurrence'
+    term1_id = Column(types.Integer, ForeignKey(SearchTerm.id,
+                      ondelete='CASCADE', onupdate='CASCADE'),
+                      nullable=False, primary_key=True)
+    term1 = relationship(SearchTerm, foreign_keys=term1_id)
+    term2_id = Column(types.Integer, ForeignKey(SearchTerm.id,
+                      ondelete='CASCADE', onupdate='CASCADE'),
+                      nullable=False, primary_key=True)
+    term2 = relationship(SearchTerm, foreign_keys=term2_id)
+    count = Column(types.Integer, default=0, nullable=False)
+
+    @property
+    def similarity(self):
         '''
-        Suggest search queries.
+        The similarity of the two terms.
 
-        ``terms`` is a list of search terms.
-
-        ``limit`` is the maximum number of suggestions returned.
-
-        Suggestions with a score below ``min_score`` are not listed.
-
-        The return value is a list of suggested search queries (as
-        strings), sorted descendingly by their similarity to the given
-        terms.
+        Returns a float between 0 (no similarity) and 1 (terms only
+        occur in combination).
         '''
-        # The following query first finds the rows that contain at least one of
-        # the terms. These rows are then sorted by score/rank (ties are decided
-        # by the frequency of the query), which is done in a separate query to
-        # avoid rank computations for all those rows that don't contain a term.
-        # Finally, rows with a score less than `min_score` are dropped. This is
-        # again done in a separate query to avoid the repetition of the call to
-        # `ts_rank`, see http://stackoverflow.com/a/12866110/857390).
-        results = _execute(
-            '''
-            SELECT *
-            FROM (
-                SELECT
-                    match.q AS q,
-                    ts_rank(to_tsvector(:language, match.q),
-                            to_tsquery(:language, :terms)) AS rank,
-                    match.count AS count
-                FROM (
-                    SELECT q, COUNT(q) AS count
-                    FROM {table}
-                    WHERE to_tsvector(:language, q) @@ to_tsquery(:language, :terms)
-                    GROUP BY q
-                ) AS match
-                ORDER BY rank DESC, count DESC
-            ) AS sorted
-            WHERE rank >= :min_rank
-            LIMIT :limit;
-            '''.format(table=cls.__tablename__),
-            language=_get_language(),
-            terms = ' | '.join(terms),
-            limit=limit,
-            min_rank=min_score,
-        )
-        return [r[0] for r in results]
+        return self.count / (self.term1.count + self.term2.count - self.count)
+
+    def __repr__(self):
+        return '<{} "{}", "{}">'.format(self.__class__.__name__,
+                                        self.term1.term.encode('utf-8'),
+                                        self.term2.term.encode('utf-8'))
 
 
 def create_tables():
@@ -120,18 +134,6 @@ def create_tables():
     Create the necessary database tables.
     '''
     log.debug('Creating database tables')
+    from ckan.model.meta import engine
     Base.metadata.create_all(engine)
-
-    # Create a text-search index to speed up text searches. See
-    # https://www.postgresql.org/docs/current/static/textsearch-tables.html
-    log.debug('Creating text search index')
-    table = SearchQuery.__tablename__
-    _execute(
-        '''
-        DROP INDEX IF EXISTS {index};
-        CREATE INDEX {index} ON {table}
-            USING GIN (to_tsvector(:language, q));
-        '''.format(table=table, index=table + '_ts_index'),
-        language=_get_language(),
-    )
 
