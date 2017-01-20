@@ -3,6 +3,8 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
+import collections
+import itertools
 import logging
 
 from sqlalchemy.orm.exc import NoResultFound
@@ -53,8 +55,11 @@ def _get_score(terms, weights=None):
                 score += (weight1 + weight2) * coocc.similarity
             except NoResultFound:
                 pass
-    score = score / (sum(weights) * (len(terms) - 1))
-    return score
+    try:
+        return score / (sum(weights) * (len(terms) - 1))
+    except ZeroDivisionError:
+        # Either only one term or all weights are zero
+        return 0
 
 
 @toolkit.side_effect_free
@@ -82,6 +87,7 @@ def search_suggest_action(context, data_dict):
     if not query:
         return []
     words = [normalize_term(t) for t in query]
+    word_set = set(words)
     limit = int(get_config('search_suggestions.limit', 4))
 
     # If the query ends with a space then we assume the user considers the last
@@ -107,35 +113,37 @@ def search_suggest_action(context, data_dict):
     log.debug('context_words = {}'.format(context_words))
     log.debug(b'context_terms = {}'.format(context_terms))
 
+    # Maps tuples of terms to scores
+    scores = {}
+
     #
     # Step 1: Auto-complete the last word
     #
 
     if last_word_complete:
-        # Do not provide auto-completion suggestions
-        ac_terms = []
-        ac_scored = []
+        # Do not provide auto-completion suggestions. However, we need to check
+        # whether the last word is a known term because in that case we take it
+        # into account during context similarity scoring.
+        try:
+            ac_terms = [SearchTerm.one(term==words[-1])]
+        except NoResultsFound:
+            ac_terms = []
     else:
-        # Find completions of the last word. If the last word is already a
-        # complete word then the corresponding term will be included.
         ac_terms = SearchTerm.filter(SearchTerm.term.like(words[-1] + '%'))
-        ac_terms = [t for t in ac_terms if t.term not in set(words[:-1])]
+        ac_terms = [t for t in ac_terms if t.term not in words[:-1]]
 
-        # Score completions by their relative frequency. ``ac_scored`` ends up
-        # as part of the actual suggestions, so if the last word is complete it
-        # is excluded.
+        # Score auto-completions
         total_count = sum(t.count for t in ac_terms)
-        ac_scored = [(t.count / total_count, (t,))
-                     for t in ac_terms if t.term != query[-1]]
-
-        # If there's more than one word in the query then we also take the
-        # their similarity to the auto-completed terms into account.
-        if context_terms:
-            ac_scored = [(0.5 * (score + _get_score(context_terms.union(terms))),
-                          terms) for score, terms in ac_scored]
+        num_context = len(context_terms)
+        factor = 1 / (1 + num_context)
+        for t in ac_terms:
+            if t.term == words[-1]:
+                continue
+            term_score = t.count / total_count
+            context_score = _get_score(context_terms.union((t,)))
+            scores[(t,)] = factor * (term_score + num_context * context_score)
 
     log.debug(b'ac_terms = {}'.format(ac_terms))
-    log.debug(b'ac_scored = {}'.format(ac_scored))
 
     #
     # Step 2: Suggest an additional search term
@@ -144,50 +152,48 @@ def search_suggest_action(context, data_dict):
     # Get extension candidates
     ext_terms = set()
     for term in context_terms.union(ac_terms):
-        criteria = (CoOccurrence.term1 == term) | (CoOccurrence.term2 == term)
-        cooccs = CoOccurrence.filter(criteria) \
+        cooccs = CoOccurrence.for_term(term) \
                              .order_by(CoOccurrence.count) \
                              .limit(limit)
         for coocc in cooccs:
             other = coocc.term2 if coocc.term1 == term else coocc.term1
             ext_terms.add(other)
-    ext_terms = [t for t in ext_terms if t.term not in words]
+    ext_terms = [t for t in ext_terms if t.term not in word_set]
     log.debug(b'ext_terms = {}'.format(ext_terms))
 
     # Combine extension candidates with auto-completion suggestions
     if ac_terms:
-        ac_ext_candidates = [(ac_term, ext_term)
-                             for ext_term in ext_terms
-                             for ac_term in ac_terms
-                             if ac_term != ext_term]
+        ac_ext_candidates = [x for x in itertools.product(ac_terms, ext_terms)
+                             if x[0] != x[1]]
     else:
         ac_ext_candidates = [(t,) for t in ext_terms]
     log.debug(b'ac_ext_candidates = {}'.format(ac_ext_candidates))
 
-
     # When ranking extensions, their relation to tokens the user has
     # already finished is more important than to an auto-completion
     # we're suggesting.
-    weights = {terms[0].term: score for score, terms in ac_scored}
-    weights.update({word: 1 for word in words})
+    weights = collections.defaultdict(int)
+    weights.update((t[0].term, s) for t, s in scores.iteritems())
+    weights.update((w, 1) for w in words)
 
     # Score extension candidates
-    ac_ext_scored = []
     for ac_ext_terms in ac_ext_candidates:
         terms = list(context_terms.union(ac_ext_terms))
-        score = _get_score(terms, [weights.get(t.term, 0) for t in terms])
+        score = _get_score(terms, [weights[t.term] for t in terms])
         if score > 0:
-            ac_ext_scored.append((score, ac_ext_terms))
+            scores[ac_ext_terms] = score
 
-    all_scored = sorted(ac_scored + ac_ext_scored, reverse=True)
-    log.debug(b'All: {}'.format(all_scored))
+    log.debug(b'scores = {}'.format(scores))
 
-    # FIXME: Add markup to distinguish existing text and suggestions
-
+    # Format suggestions for output
+    suggestions = sorted(scores.iterkeys(), key=scores.get, reverse=True)
+    suggestions = list(suggestions)[:limit]
+    suggestions = [' '.join([t.term for t in terms]) for terms in suggestions]
     if not ac_terms:
         prefix = ' '.join(query) + ' '
     else:
         prefix = ' '.join(query[:-1]) + ' '
-    return [prefix + ' '.join([t.term for t in terms])
-            for score, terms in all_scored[:limit]]
+    return ['{} {}'.format(prefix, s) for s in suggestions]
+
+    # FIXME: Add markup to distinguish existing text and suggestions
 

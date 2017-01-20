@@ -123,6 +123,13 @@ class CoOccurrence(Object):
         '''
         return self.count / (self.term1.count + self.term2.count - self.count)
 
+    @classmethod
+    def for_term(cls, term):
+        '''
+        Query all co-occurrences of a ``SearchTerm``.
+        '''
+        return cls.filter((cls.term1 == term) | (cls.term2 == term))
+
     def __repr__(self):
         r = '<{} "{}", "{}">'.format(self.__class__.__name__,
                                      self.term1.term,
