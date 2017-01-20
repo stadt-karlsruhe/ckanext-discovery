@@ -12,6 +12,7 @@ import ckan.plugins.toolkit as toolkit
 from ckan.lib.navl.validators import not_missing, not_empty
 
 from .model import SearchTerm, CoOccurrence, normalize_term
+from .. import get_config
 
 
 log = logging.getLogger(__name__)
@@ -65,6 +66,10 @@ def search_suggest_action(context, data_dict):
     Statistics show that almost all search queries contain 3 terms or
     less. Hence this function only takes the last 4 terms into account
     when computing similarity scores.
+
+    The maximum number of suggestions offered can be set via the config
+    option ``ckanext.discovery.search_suggestions.limit``, it defaults
+    to 4.
     '''
     log.debug('discovery_search_suggest {!r}'.format(data_dict['q']))
     toolkit.check_access('discovery_search_suggest', context, data_dict)
@@ -77,6 +82,7 @@ def search_suggest_action(context, data_dict):
     if not query:
         return []
     words = [normalize_term(t) for t in query]
+    limit = int(get_config('search_suggestions.limit', 4))
 
     # If the query ends with a space then we assume the user considers the last
     # word complete. In that case we won't offer any auto-completions for it.
@@ -100,8 +106,6 @@ def search_suggest_action(context, data_dict):
     log.debug('last_word_complete = {}'.format(last_word_complete))
     log.debug('context_words = {}'.format(context_words))
     log.debug(b'context_terms = {}'.format(context_terms))
-
-    # TODO: Limit results by minimum score
 
     #
     # Step 1: Auto-complete the last word
@@ -140,9 +144,10 @@ def search_suggest_action(context, data_dict):
     # Get extension candidates
     ext_terms = set()
     for term in context_terms.union(ac_terms):
-        # FIXME: Add a limit to this query
         criteria = (CoOccurrence.term1 == term) | (CoOccurrence.term2 == term)
-        cooccs = CoOccurrence.filter(criteria).order_by(CoOccurrence.count)
+        cooccs = CoOccurrence.filter(criteria) \
+                             .order_by(CoOccurrence.count) \
+                             .limit(limit)
         for coocc in cooccs:
             other = coocc.term2 if coocc.term1 == term else coocc.term1
             ext_terms.add(other)
@@ -171,19 +176,18 @@ def search_suggest_action(context, data_dict):
     for ac_ext_terms in ac_ext_candidates:
         terms = list(context_terms.union(ac_ext_terms))
         score = _get_score(terms, [weights.get(t.term, 0) for t in terms])
-        ac_ext_scored.append((score, ac_ext_terms))
+        if score > 0:
+            ac_ext_scored.append((score, ac_ext_terms))
 
     all_scored = sorted(ac_scored + ac_ext_scored, reverse=True)
     log.debug(b'All: {}'.format(all_scored))
 
     # FIXME: Add markup to distinguish existing text and suggestions
 
-    # FIXME: Limit number of results
-
     if not ac_terms:
         prefix = ' '.join(query) + ' '
     else:
         prefix = ' '.join(query[:-1]) + ' '
     return [prefix + ' '.join([t.term for t in terms])
-            for score, terms in all_scored]
+            for score, terms in all_scored[:limit]]
 
