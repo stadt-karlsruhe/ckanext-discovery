@@ -89,8 +89,8 @@ class SearchTerm(Object):
     count = Column(types.Integer, default=0, nullable=False)
 
     def __repr__(self):
-        return '<{} "{}">'.format(self.__class__.__name__,
-                                  self.term.encode('utf-8'))
+        r = '<{} "{}">'.format(self.__class__.__name__, self.term)
+        return r.encode('utf-8')
 
 
 class CoOccurrence(Object):
@@ -124,9 +124,10 @@ class CoOccurrence(Object):
         return self.count / (self.term1.count + self.term2.count - self.count)
 
     def __repr__(self):
-        return '<{} "{}", "{}">'.format(self.__class__.__name__,
-                                        self.term1.term.encode('utf-8'),
-                                        self.term2.term.encode('utf-8'))
+        r = '<{} "{}", "{}">'.format(self.__class__.__name__,
+                                     self.term1.term,
+                                     self.term2.term)
+        return r.encode('utf-8')
 
 
 def create_tables():
