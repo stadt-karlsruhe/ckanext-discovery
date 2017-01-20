@@ -4,7 +4,6 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import logging
-import re
 
 from sqlalchemy import Column, types, ForeignKey
 from sqlalchemy.exc import IntegrityError
@@ -67,16 +66,6 @@ class Object(Base):
     @classmethod
     def filter(cls, *args, **kwargs):
         return Session.query(cls).filter(*args, **kwargs)
-
-
-def normalize_term(term):
-    '''
-    Normalize a search term.
-
-    ``term`` is a string.
-    '''
-    term = term.strip().lower()
-    return re.sub(r'[\W_]', '', term, flags=re.UNICODE)
 
 
 class SearchTerm(Object):

@@ -4,17 +4,37 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import logging
+import re
 
 import ckan.plugins as plugins
 import ckan.plugins.toolkit as toolkit
 from ckan.model.meta import Session
 
-from .action import search_suggest_action, search_suggest_auth
-from .model import SearchTerm, CoOccurrence, normalize_term
+from .model import SearchTerm, CoOccurrence
 from .interfaces import ISearchHistoryFilter
 
 
 log = logging.getLogger(__name__)
+
+
+def split_query(q):
+    '''
+    Split a search query into normalized words.
+
+    ``q`` is a search query as a string.
+
+    Returns a list of strings.
+
+    During normalization, the query is converted to lower-case and all
+    characters that are neither letters, digits, or intra-word hyphens
+    are replaced by spaces. The resulting string is split on whitespace.
+    '''
+    q = q.lower()
+    q = re.sub(r'[^\w-]', ' ', q, flags=re.UNICODE)
+    q = q.replace('_', ' ')  # Because _ is in \w
+    q = re.sub(r'(?<!\w)-', ' ', q, flags=re.UNICODE)
+    q = re.sub(r'-(?!\w)', ' ', q, flags=re.UNICODE)
+    return q.split()
 
 
 def store_query(q):
@@ -27,7 +47,7 @@ def store_query(q):
     are called before the query is stored. If one of them returns a
     false value then the query is not stored.
     '''
-    words = set(normalize_term(t) for t in q.split())
+    words = set(split_query(q))
     for plugin in plugins.PluginImplementations(ISearchHistoryFilter):
         if not plugin.filter_search_query(words):
             log.debug(('The search query "{}" was rejected by a '
@@ -94,6 +114,7 @@ class SearchSuggestionsPlugin(plugins.SingletonPlugin):
     #
 
     def get_actions(self):
+        from .action import search_suggest_action
         return {
             'discovery_search_suggest': search_suggest_action,
         }
@@ -104,6 +125,7 @@ class SearchSuggestionsPlugin(plugins.SingletonPlugin):
     #
 
     def get_auth_functions(self):
+        from .action import search_suggest_auth
         return {
             'discovery_search_suggest': search_suggest_auth,
         }

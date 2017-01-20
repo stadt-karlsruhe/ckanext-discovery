@@ -13,7 +13,8 @@ from ckan.logic import validate
 import ckan.plugins.toolkit as toolkit
 from ckan.lib.navl.validators import not_missing, not_empty
 
-from .model import SearchTerm, CoOccurrence, normalize_term
+from .model import SearchTerm, CoOccurrence
+from . import split_query
 from .. import get_config
 
 
@@ -82,11 +83,10 @@ def search_suggest_action(context, data_dict):
     # In the following, a "term" is always an instance of ``SearchTerm``, and
     # a "word" is a normalized search token.
 
-    q = data_dict['q']
-    query = q.split()
-    if not query:
-        return []
-    words = [normalize_term(t) for t in query]
+    q = data_dict['q'].lower()
+    words = split_query(q)
+    if not words:
+        return
     word_set = set(words)
     limit = int(get_config('search_suggestions.limit', 4))
 
@@ -190,9 +190,20 @@ def search_suggest_action(context, data_dict):
     suggestions = list(suggestions)[:limit]
     suggestions = [' '.join([t.term for t in terms]) for terms in suggestions]
     if ac_terms:
-        prefix = ' '.join(query)
+        prefix = q
+
+        # If the query ends with characters that are removed by the
+        # normalization then we need to strip them from the suggestions,
+        # too.
+        try:
+            i = prefix.rindex(words[-1])
+        except ValueError:
+            pass
+        else:
+            prefix = prefix[:i] + ' ' + words[-1]
+
         suggestions = [s[len(words[-1]):] for s in suggestions]
     else:
-        prefix = ' '.join(query) + ' '
+        prefix = q + ' '
     return ['{}<strong>{}</strong>'.format(prefix, s) for s in suggestions]
 
