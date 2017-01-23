@@ -1,0 +1,9 @@
+.ui-autocomplete .ui-menu-item a,
+.ui-autocomplete .ui-menu-item a:active,
+.ui-autocomplete .ui-menu-item a:focus,
+.ui-autocomplete .ui-menu-item a:hover,
+.ui-autocomplete .ui-menu-item a:visited {
+    display: block;
+    text-decoration: none;
+}
+
