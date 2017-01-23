@@ -12,6 +12,7 @@ from ckan.model.meta import Session
 
 from .model import SearchTerm, CoOccurrence
 from .interfaces import ISearchHistoryFilter
+from .. import get_config
 
 
 log = logging.getLogger(__name__)
@@ -82,30 +83,34 @@ class SearchSuggestionsPlugin(plugins.SingletonPlugin):
     #
 
     def after_search(self, search_results, search_params):
-        q = search_params['q']
-        fq = search_params['fq']
-
-        # Try to figure out whether this is a user-initiated, text-based search
-        # request (and not a programmatically triggered one, tag search, ...).
-        # See
-        # https://github.com/ckan/ckanext-searchhistory/issues/1#issue-32079108
-        c = toolkit.c
         try:
-            if (
-                c.controller != 'package'
-                or c.action != 'search'
-                or (q or '').strip() in (':', '*:*')
-            ):
+            q = search_params['q']
+
+            # Try to figure out whether this is a user-initiated, text-based
+            # search request (and not a programmatically triggered one, tag
+            # search, ...). See
+            # https://github.com/ckan/ckanext-searchhistory/issues/1#issue-32079108
+            c = toolkit.c
+            try:
+                if (
+                    c.controller != 'package'
+                    or c.action != 'search'
+                    or (q or '').strip() in (':', '*:*')
+                ):
+                    return search_results
+            except TypeError:
+                # Web context not ready. Happens, for example, in paster
+                # commands.
                 return search_results
-        except TypeError:
-            # Web context not ready. Happens, for example, in paster commands.
-            return search_results
 
-        # TODO: If a user performs a text-based search and then continuously
-        # refines the result via facets then we end up with many entries for
-        # basically the same search, which might screw up our scoring.
-
-        store_query(q)
+            # TODO: If a user performs a text-based search and then
+            # continuously refines the result via facets then we end up with
+            # many entries for basically the same search, which might screw up
+            # our scoring.
+            store_query(q)
+        except Exception:
+            # Log exception but don't cause search request to fail
+            log.exception('An exception occurred while storing a search query')
 
         return search_results
 
