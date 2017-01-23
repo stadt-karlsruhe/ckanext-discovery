@@ -1,7 +1,7 @@
 {% ckan_extends %}
 
 {% block form %}
-    {% resource 'discovery_search_suggestions/search_suggestions' %}
+    {% snippet 'ckanext-discovery/snippets/search_suggestions.html' %}
     {{ super() }}
 {% endblock %}
 

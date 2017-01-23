@@ -1,0 +1,13 @@
+{#
+Activate search suggestions if they are enabled in the config.
+
+Includes the necessary resources for search suggestions if the configuration
+setting `ckanext.discovery.search_suggestions.provide_suggestions` is true. The
+resources then activate the actual suggestion functionality automatically when
+they are loaded in the browser.
+#}
+{% set provide_suggestions = h.discovery_as_bool(
+    h.discovery_get_config('search_suggestions.provide_suggestions', True)) %}
+{% if provide_suggestions %}
+    {% resource 'discovery_search_suggestions/search_suggestions' %}
+{% endif %}

@@ -63,6 +63,24 @@ def store_query(q):
     Session.commit()
 
 
+def _is_user_text_search(context, query):
+    '''
+    Decide if a search query is a user-initiated text search.
+    '''
+    # See https://github.com/ckan/ckanext-searchhistory/issues/1#issue-32079108
+    try:
+        if (
+            context.controller != 'package'
+            or context.action != 'search'
+            or (query or '').strip() in (':', '*:*')
+        ):
+            return False
+    except TypeError:
+        # Web context not ready. Happens, for example, in paster commands.
+        return False
+    return True
+
+
 class SearchSuggestionsPlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IConfigurer)
     plugins.implements(plugins.IPackageController, inherit=True)
@@ -83,26 +101,13 @@ class SearchSuggestionsPlugin(plugins.SingletonPlugin):
     #
 
     def after_search(self, search_results, search_params):
+        if not toolkit.asbool(get_config('search_suggestions.store_queries',
+                              True)):
+            return search_results
         try:
             q = search_params['q']
-
-            # Try to figure out whether this is a user-initiated, text-based
-            # search request (and not a programmatically triggered one, tag
-            # search, ...). See
-            # https://github.com/ckan/ckanext-searchhistory/issues/1#issue-32079108
-            c = toolkit.c
-            try:
-                if (
-                    c.controller != 'package'
-                    or c.action != 'search'
-                    or (q or '').strip() in (':', '*:*')
-                ):
-                    return search_results
-            except TypeError:
-                # Web context not ready. Happens, for example, in paster
-                # commands.
+            if not _is_user_text_search(toolkit.c, q):
                 return search_results
-
             # TODO: If a user performs a text-based search and then
             # continuously refines the result via facets then we end up with
             # many entries for basically the same search, which might screw up
@@ -111,7 +116,6 @@ class SearchSuggestionsPlugin(plugins.SingletonPlugin):
         except Exception:
             # Log exception but don't cause search request to fail
             log.exception('An exception occurred while storing a search query')
-
         return search_results
 
     #

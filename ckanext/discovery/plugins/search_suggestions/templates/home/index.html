@@ -7,7 +7,7 @@ template doesn't contain any blocks and overwriting it completely would
 interfere with the tag_cloud plugin.
 #}
 {% block content %}
-    {% resource 'discovery_search_suggestions/search_suggestions' %}
+    {% snippet 'ckanext-discovery/snippets/search_suggestions.html' %}
     {{ super() }}
 {% endblock %}
 

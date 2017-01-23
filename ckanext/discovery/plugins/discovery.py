@@ -28,6 +28,7 @@ class DiscoveryPlugin(plugins.SingletonPlugin, DefaultTranslation):
     def get_helpers(self):
         return {
             'discovery_get_config': get_config,
+            'discovery_as_bool': toolkit.asbool,
         }
 
     #
