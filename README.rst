@@ -8,6 +8,19 @@ FIXME
 
 Plugins
 =======
+This extension provides multiple plugins:
+
+* search_suggestions_: Provides real-time search suggestions in a drop-down
+  box
+* similar_datasets_: Adds a list of similar datasets to the dataset detail view
+* solr_query_config_: Allows you to easily override the parameters that CKAN
+  passes to Solr
+* tag_cloud_: Replaces the list of frequent tags on the home page with a tag
+  cloud that shows the most popular tags scaled according to their popularity
+
+In addition there is the discovery_ plugin which doesn't provide additional
+functionality on its own but contains shared utilities required by the other
+plugins.
 
 ``discovery``
 +++++++++++++
@@ -17,6 +30,107 @@ activate it in CKAN's `configuration INI`_ if you want to use any other plugin
 of this extension::
 
     plugins = ... discovery
+
+
+``search_suggestions``
+++++++++++++++++++++++
+This plugin provides real-time search suggestions while the user is entering
+text into a search field:
+
+.. image:: doc/search_suggestions.png
+    :alt: Screenshot of the search_suggestions plugin
+
+Installation
+------------
+First add ``discovery`` and ``search_suggestions`` to the list of plugins in
+CKAN's `configuration INI`_::
+
+    plugins = ... discovery search_suggestions
+
+Then create the necessary database tables::
+
+    . /usr/lib/ckan/default/bin/activate
+    paster --plugin=ckanext-discovery search_suggestions init -c /etc/ckan/default/production.ini
+
+Finally, restart CKAN::
+
+    sudo service apache2 restart
+
+Usage
+-----
+The suggestions are generated from previous searches by other users. The plugin
+therefore combines two functionalities:
+
+1. Automatic collection of statistics about the users' search queries
+2. Generation and display of search suggestions
+
+Regarding the first point it is important to point out that search queries are
+stored in a post-processed form and without any reference to the corresponding
+user.
+
+Search suggestions are automatically enabled on all search fields that CKAN
+provides in its base templates, namely the search box on the home page, the
+search field in the header, and the search box at ``/dataset``. In addition,
+any HTML element with the class ``search`` will also automatically display
+search suggestions.
+
+Obviously suggestions are only provided once some search queries have been
+recorded.
+
+Configuration
+-------------
+The plugin offers multiple settings that can be configured via CKAN's
+`configuration INI`_::
+
+    # Maximum number of search suggestions to display in the drop-down
+    # box. Defaults to 4. Note that fewer suggestions may be listed if not
+    # enough related queries have been stored before.
+    ckanext.discovery.search_suggestions.limit = 4
+
+    # Whether data about search queries should be stored. Defaults to true.
+    ckanext.discovery.search_suggestions.store_queries = True
+
+    # Whether search suggestions should be displayed. Defaults to true.
+    ckanext.discovery.search_suggestions.provide_suggestions = True
+
+Query Filtering
+---------------
+Since this plugin displays texts input by one user to other users there is a
+certain risk that unwelcome content may find its way into the suggestions. The
+plugin provides the interface ``ISearchHistoryFilter`` whose
+``filter_search_query`` method can be used to decide whether a given query
+should be stored. You can implement this interface in another plugin and apply
+a custom filter::
+
+    import ckan.plugins as plugins
+    from ckanext.discovery.plugins.search_suggestions import ISearchHistoryFilter
+
+    # We don't want people to talk about dogs here!
+    BAD_WORDS = {'dog', 'puppy'}
+
+    class MyPlugin(plugins.SingletonPlugin):
+        plugins.implements(ISearchHistoryFilter)
+
+
+        def filter_search_query(self, query):
+            '''
+            Decide whether a search query should be stored.
+
+            ``query`` is a set of normalized search terms extracted from a
+            user's search query.
+
+            If this method returns a true value then the query terms are
+            stored and may be presented to other users as part of future
+            search suggestions. If this method returns a false value then
+            the query is not stored. The search itself has already taken
+            place when this method is called and is not affected by it.
+            '''
+            if query.intersection(BAD_WORDS):
+                # Ugh, dog talk! Don't store the query.
+                return False
+
+            # No one mentioned dogs, so we can safely store this query.
+            return True
 
 
 ``similar_datasets``
@@ -92,12 +206,12 @@ The plugin offers two settings that can be configured in CKAN's
 
     # Maximum number of similar datasets to list. Defaults to 5. Note that less
     # datasets may be shown if Solr doesn't find enough similar datasets.
-    ckanext.discovery.similar_datasets.max_num = 3
+    ckanext.discovery.similar_datasets.max_num = 5
 
     # Minimum similarity score. Similar datasets for which Solr reports a lower
     # similarity score are not shown. Defaults to 0, which means that all
     # documents returned by Solr are shown.
-    ckanext.discovery.similar_datasets.min_score = 0.6
+    ckanext.discovery.similar_datasets.min_score = 0
 
 
 ``solr_query_config``
@@ -114,6 +228,10 @@ Simply add ``solr_query_config`` to the list of plugins in CKAN's
 `configuration INI`_::
 
     plugins = ... solr_query_config
+
+Then restart CKAN::
+
+    sudo service apache2 restart
 
 Configuration
 -------------
@@ -148,6 +266,10 @@ Simply add ``discovery`` and ``tag_cloud`` to the list of plugins in CKAN's
 
     plugins = ... discovery tag_cloud
 
+Then restart CKAN::
+
+    sudo service apache2 restart
+
 Usage
 -----
 The plugin automatically replaces the list of the most frequent tags on CKAN's
@@ -170,7 +292,7 @@ The plugin offers one setting that can be configured via CKAN's
     # Number of tags to show in the tag cloud. Defaults to 20 and can be
     # overriden by passing a ``num_tags`` parameter to the tag cloud template
     # snippet.
-    ckanext.discovery.tag_cloud.num_tags = 10
+    ckanext.discovery.tag_cloud.num_tags = 20
 
 
 .. _configuration INI: http://docs.ckan.org/en/latest/maintaining/configuration.html#ckan-configuration-file
