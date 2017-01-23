@@ -69,6 +69,10 @@ def search_suggest_action(context, data_dict):
     '''
     Get suggested search queries.
 
+    Returns a list of dictionaries, sorted decreasingly by relevance.
+    Each dictionary contains two keys ``label`` and ``value``, which
+    contain an HTML string and a plain-text value for the suggestion.
+
     Statistics show that almost all search queries contain 3 terms or
     less. Hence this function only takes the last 4 terms into account
     when computing similarity scores.
@@ -185,7 +189,10 @@ def search_suggest_action(context, data_dict):
 
     log.debug(b'scores = {}'.format(scores))
 
-    # Format suggestions for output
+    #
+    # Step 3: Format suggestions for output
+    #
+
     suggestions = sorted(scores.iterkeys(), key=scores.get, reverse=True)
     suggestions = list(suggestions)[:limit]
     suggestions = [' '.join([t.term for t in terms]) for terms in suggestions]
@@ -200,10 +207,15 @@ def search_suggest_action(context, data_dict):
         except ValueError:
             pass
         else:
-            prefix = prefix[:i] + ' ' + words[-1]
-
+            prefix = (prefix[:i] + ' ' + words[-1]).strip()
         suggestions = [s[len(words[-1]):] for s in suggestions]
     else:
         prefix = q + ' '
-    return ['{}<strong>{}</strong>'.format(prefix, s) for s in suggestions]
+    return [
+        {
+            'label': '{}<strong>{}</strong>'.format(prefix, s),
+            'value': prefix + s,
+        }
+        for s in suggestions
+    ]
 
