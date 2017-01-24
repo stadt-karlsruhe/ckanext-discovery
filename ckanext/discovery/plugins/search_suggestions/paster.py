@@ -24,6 +24,9 @@ class SearchSuggestionsCommand(CkanCommand):
 
         init: Initialize database tables.
 
+        refilter: Re-filter the stored search terms via the current
+            implementations of the ISearchHistoryFilter interface.
+
     """
     max_args = 1
     min_args = 0
@@ -34,14 +37,24 @@ class SearchSuggestionsCommand(CkanCommand):
         self._load_config()
         if not self.args:
             _error('Missing command name. Try --help.')
+        self._load_config()
         cmd = self.args[0]
         if cmd == 'init':
             self.init()
+        elif cmd == 'refilter':
+            self.refilter()
         else:
             _error('Uknown command "{}"'.format(cmd))
 
     def init(self):
-        self._load_config()
         from .model import create_tables
+        print('Creating database tables...')
         create_tables()
+        print('Done.')
+
+    def refilter(self):
+        from . import refilter
+        print('Refiltering stored search terms...')
+        refilter()
+        print('Done.')
 

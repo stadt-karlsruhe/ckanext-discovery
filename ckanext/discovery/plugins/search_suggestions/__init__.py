@@ -38,6 +38,19 @@ def split_query(q):
     return q.split()
 
 
+def _filter_query(words):
+    '''
+    Check a set of normalized search terms against the filters.
+
+    Returns ``True`` if the terms were accepted and ``False`` otherwise.
+    '''
+    words = set(words)
+    for plugin in plugins.PluginImplementations(ISearchHistoryFilter):
+        if not plugin.filter_search_query(words):
+            return False
+    return True
+
+
 def store_query(q):
     '''
     Store a search query in the database.
@@ -49,18 +62,33 @@ def store_query(q):
     false value then the query is not stored.
     '''
     words = set(split_query(q))
-    for plugin in plugins.PluginImplementations(ISearchHistoryFilter):
-        if not plugin.filter_search_query(words):
-            log.debug(('The search query "{}" was rejected by a '
-                      + 'filter.').format(q))
-            return
-    log.debug('Remembering user search query "{}"'.format(q))
+    if not _filter_query(words):
+        log.debug(('A filter rejected the search query "{}".').format(q))
+        return
+    log.debug('Remembering the search query "{}"'.format(q))
     terms = sorted(SearchTerm.get_or_create(term=t) for t in words)
     for i, term1 in enumerate(terms):
         term1.count += 1
         for term2 in terms[i + 1:]:
             CoOccurrence.get_or_create(term1=term1, term2=term2).count += 1
     Session.commit()
+
+
+def refilter():
+    '''
+    Re-filter the stored search terms.
+
+    Filters all stored search terms using the implementations of the
+    ``ISearchHistoryFilter`` interface and removes all that are rejected
+    by the filters. Useful after updating a filter implementation.
+    '''
+    log.debug('Refiltering stored search terms')
+    for term in Session.query(SearchTerm).yield_per(100):
+        if not _filter_query({term.term}):
+            log.debug('Deleting {}'.format(term))
+            Session.delete(term)
+    Session.commit()
+    log.debug('Refiltering complete')
 
 
 def _is_user_text_search(context, query):

@@ -132,6 +132,13 @@ a custom filter::
             # No one mentioned dogs, so we can safely store this query.
             return True
 
+Adding, removing or changing an ``ISearchHistoryFilter`` implementation only
+affects the search terms that are collected afterwards. To apply the changed
+filter to the already stored terms use the following command::
+
+    . /usr/lib/ckan/default/bin/activate
+    paster --plugin=ckanext-discovery search_suggestions refilter -c /etc/ckan/default/production.ini
+
 
 ``similar_datasets``
 ++++++++++++++++++++
