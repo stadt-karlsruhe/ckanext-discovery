@@ -1,14 +1,13 @@
 ckanext-discovery
 #################
+*A CKAN extension to help people discover your datasets*
 
-Installation
-============
-FIXME
+Open data can only be used for awesome things if it is found. CKAN_ has
+powerful built-in search tools, but for users who don't know (yet) what exactly
+they are looking for there is room for improvement.
 
-
-Plugins
-=======
-This extension provides multiple plugins:
+This extension provides multiple plugins that make it easier for your users to
+find the data they're looking for:
 
 * search_suggestions_: Provides real-time search suggestions in a drop-down
   box
@@ -18,9 +17,27 @@ This extension provides multiple plugins:
 * tag_cloud_: Replaces the list of frequent tags on the home page with a tag
   cloud that shows the most popular tags scaled according to their popularity
 
-In addition there is the discovery_ plugin which doesn't provide additional
-functionality on its own but contains shared utilities required by some of
-the other plugins.
+
+Installation
+============
+*ckanext-discovery* has been developed and tested with CKAN 2.6. Other versions
+may or may not work, any feedback in that regard is very welcome.
+
+First activate your CKAN virtualenv::
+
+    . /usr/lib/ckan/default/bin/activate
+
+Then install the latest version of *ckanext-discovery*::
+
+    pip install -e git+https://github.com/stadt-karlsruhe/ckanext-discovery#egg=ckanext-discovery
+
+The extension is now installed. However, *you still need to install and configure
+those of its plugins that you want to use*. See the documentations of the
+individual plugins below for more information.
+
+
+Plugins
+=======
 
 ``discovery``
 +++++++++++++
@@ -316,6 +333,7 @@ The plugin offers one setting that can be configured via CKAN's
     ckanext.discovery.tag_cloud.num_tags = 20
 
 
+.. _CKAN: http://ckan.org
 .. _configuration INI: http://docs.ckan.org/en/latest/maintaining/configuration.html#ckan-configuration-file
 .. _package_search: http://docs.ckan.org/en/latest/api/index.html#ckan.logic.action.get.package_search
 .. _More Like This: https://cwiki.apache.org/confluence/display/solr/MoreLikeThis
