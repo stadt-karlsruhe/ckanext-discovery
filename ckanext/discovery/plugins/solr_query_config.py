@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 class SolrQueryConfigPlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IPackageController, inherit=True)
 
-    CONFIG_PREFIX = 'ckanext.discovery.solr.'
+    CONFIG_PREFIX = 'ckanext.discovery.solr_query_config.'
     DEFAULT_PREFIX = CONFIG_PREFIX + 'default.'
     FORCE_PREFIX = CONFIG_PREFIX + 'force.'
 

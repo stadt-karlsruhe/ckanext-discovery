@@ -19,17 +19,13 @@ This extension provides multiple plugins:
   cloud that shows the most popular tags scaled according to their popularity
 
 In addition there is the discovery_ plugin which doesn't provide additional
-functionality on its own but contains shared utilities required by the other
-plugins.
+functionality on its own but contains shared utilities required by some of
+the other plugins.
 
 ``discovery``
 +++++++++++++
 This plugin doesn't provide any direct functionallity on its own but contains
-utilities required by the other plugins. It is therefore required that you
-activate it in CKAN's `configuration INI`_ if you want to use any other plugin
-of this extension::
-
-    plugins = ... discovery
+shared utilities required by some of the other plugins.
 
 
 ``search_suggestions``
@@ -261,13 +257,13 @@ Then restart CKAN::
 Configuration
 -------------
 To specify a default value, prefix the parameter name with
-``ckanext.discovery.solr.default.``::
+``ckanext.discovery.solr_query_config.default.``::
 
     # By default, sort by metadata modification timestamp
     ckanext.discovery.solr.default.sort = metadata_modified asc
 
 Similarly, a value can be forced using the prefix
-``ckanext.discovery.solr.force.``::
+``ckanext.discovery.solr_query_config.force.``::
 
     # Always use a custom Solr query handler
     ckanext.discovery.solr.force.defType = my_special_query_handler
