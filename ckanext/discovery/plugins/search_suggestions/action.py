@@ -133,7 +133,7 @@ def search_suggest_action(context, data_dict):
         except NoResultFound:
             ac_terms = []
     else:
-        ac_terms = SearchTerm.filter(SearchTerm.term.like(words[-1] + '%'))
+        ac_terms = SearchTerm.by_prefix(words[-1])
         ac_terms = [t for t in ac_terms if t.term not in words[:-1]]
 
         # Score auto-completions

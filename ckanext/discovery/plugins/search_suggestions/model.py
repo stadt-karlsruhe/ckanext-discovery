@@ -5,11 +5,13 @@ from __future__ import (absolute_import, division, print_function,
 
 import logging
 
-from sqlalchemy import Column, types, ForeignKey
+from sqlalchemy import Column, DDL, event, ForeignKey, Index, types
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.dialects.postgresql import TSVECTOR
+from sqlalchemy.sql import func
 
 from ckan.model.meta import Session
 
@@ -76,10 +78,40 @@ class SearchTerm(Object):
     id = Column(types.Integer, primary_key=True, nullable=False)
     term = Column(types.UnicodeText, unique=True, nullable=False, index=True)
     count = Column(types.Integer, default=0, nullable=False)
+    term_tsvector = Column(TSVECTOR)
+    __table__args = (
+        Index('discovery_searchterm_term_tsvector_idx', 'term_tsvector',
+              postgresql_using='gin'),
+    )
 
     def __repr__(self):
         r = '<{} "{}">'.format(self.__class__.__name__, self.term)
         return r.encode('utf-8')
+
+    @classmethod
+    def by_prefix(cls, prefix):
+        '''
+        Find search terms with a given prefix.
+        '''
+        # In our SQLAlchemy version the language cannot be specified in the
+        # `match` function, so we construct the query explicitly. See
+        # https://bitbucket.org/zzzeek/sqlalchemy/issues/3078
+        tsquery = func.to_tsquery('simple', "'{}':*".format(prefix))
+        return Session.query(cls).filter(
+            cls.term_tsvector.op('@@')(tsquery)
+        )
+
+
+# Register a trigger that automatically updates the `term_tsvector` column
+# when a SearchTerm is added or changed.
+_term_tsvector_trigger = DDL('''
+    CREATE TRIGGER discovery_search_term_tsvector_update
+    BEFORE INSERT OR UPDATE ON {table}
+    FOR EACH ROW EXECUTE PROCEDURE
+    tsvector_update_trigger(term_tsvector, 'simple', term)
+'''.format(table=SearchTerm.__tablename__))
+event.listen(SearchTerm.__table__, 'after_create',
+             _term_tsvector_trigger.execute_if(dialect='postgresql'))
 
 
 class CoOccurrence(Object):
