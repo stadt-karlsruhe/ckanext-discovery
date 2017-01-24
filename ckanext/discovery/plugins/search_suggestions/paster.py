@@ -28,9 +28,9 @@ class SearchSuggestionsCommand(CkanCommand):
         list:
             List all currently stored search terms.
 
-        refilter:
-            Re-filter the stored search terms via the current implementations
-            of the ISearchHistoryFilter interface.
+        reprocess:
+            Re-process the stored search terms via the current implementations
+            of the ISearchTermPreprocessor interface.
 
     """
     max_args = 1
@@ -47,7 +47,7 @@ class SearchSuggestionsCommand(CkanCommand):
         try:
             method = getattr(self, 'cmd_' + cmd)
         except AttributeError:
-            _error('Uknown command "{}"'.format(cmd))
+            _error('Unknown command "{}". Try --help.'.format(cmd))
         method()
 
     def cmd_init(self):
@@ -56,10 +56,10 @@ class SearchSuggestionsCommand(CkanCommand):
         create_tables()
         print('Done.')
 
-    def cmd_refilter(self):
-        from . import refilter
-        print('Refiltering stored search terms...')
-        refilter()
+    def cmd_reprocess(self):
+        from . import reprocess
+        print('Re-processing stored search terms...')
+        reprocess()
         print('Done.')
 
     def cmd_list(self):

@@ -93,53 +93,66 @@ The plugin offers multiple settings that can be configured via CKAN's
     # Whether search suggestions should be displayed. Defaults to true.
     ckanext.discovery.search_suggestions.provide_suggestions = True
 
-Query Filtering
----------------
-Since this plugin displays texts input by one user to other users there is a
-certain risk that unwelcome content may find its way into the suggestions. The
-plugin provides the interface ``ISearchHistoryFilter`` whose
-``filter_search_query`` method can be used to decide whether a given query
-should be stored. You can implement this interface in another plugin and apply
-a custom filter::
+Filtering and Preprocessing Search Terms
+----------------------------------------
+To achieve good suggestions, search terms entered by the user must be
+preprocessed, for example by converting them to lower-case. Most of this is
+done automatically by the plugin. However, there's also the possibility to
+perform additional custom preprocessing and filtering steps. This is useful,
+for example, to filter out stop words in your target language (the plugin
+doesn't do stop word filter at all) or to ignore unwelcome content. The latter
+is particularly important since search terms entered by one user may end up in
+the suggestions provided to other users.
+
+To implement your own search term filter and preprocessor, simply implement the
+``ISearchTermPreprocessor`` interface, which contains a single method,
+``preprocess_search_term``::
 
     import ckan.plugins as plugins
-    from ckanext.discovery.plugins.search_suggestions import ISearchHistoryFilter
+    from ckanext.discovery.plugins.search_suggestions.interfaces import \
+        ISearchTermPreprocessor
+
+    STOP_WORDS = {'and', 'not', 'or'}
 
     # We don't want people to talk about dogs here!
     BAD_WORDS = {'dog', 'puppy'}
 
+    REJECT_WORDS = STOP_WORDS.union(BAD_WORDS)
+
     class MyPlugin(plugins.SingletonPlugin):
-        plugins.implements(ISearchHistoryFilter)
+        plugins.implements(ISearchTermPreprocessor)
 
-
-        def filter_search_query(self, query):
+        def preprocess_search_term(self, term):
             '''
-            Decide whether a search query should be stored.
+            Preprocess and filter a search term.
 
-            ``query`` is a set of normalized search terms extracted from a
-            user's search query.
+            ``term`` is a search term extracted from a user's search query.
 
-            If this method returns a true value then the query terms are
-            stored and may be presented to other users as part of future
-            search suggestions. If this method returns a false value then
-            the query is not stored. The search itself has already taken
-            place when this method is called and is not affected by it.
+            If this method returns a false value then the term is ignored
+            w.r.t. search suggestions. This is useful for filtering stop
+            words and unwelcome content.
+
+            Otherwise the return value of the method is used instead of the
+            original search term. In most cases you simply return the value
+            unchanged.
+
+            Note that all of this only affects the generation of the search
+            suggestions but not the search itself.
             '''
-            if query.intersection(BAD_WORDS):
-                # Ugh, dog talk! Don't store the query.
+            if term in REJECT_WORDS:
+                # Ignore this term
                 return False
 
-            # No one mentioned dogs, so we can safely store this query.
-            return True
+            # Go ahead and use term to calculate search suggestions
+            return term
 
-Adding, removing or changing an ``ISearchHistoryFilter`` implementation only
-affects the search terms that are collected afterwards. To apply the changed
-filter to the already stored terms use the following command::
+After adding, removing or changing an ``ISearchTermPreprocessor``
+implementation you need to reprocess the previously stored search terms::
 
     . /usr/lib/ckan/default/bin/activate
-    paster --plugin=ckanext-discovery search_suggestions refilter -c /etc/ckan/default/production.ini
+    paster --plugin=ckanext-discovery search_suggestions reprocess -c /etc/ckan/default/production.ini
 
-To get a list of all currently stored search terms, use the ``list`` command::
+To show all currently stored search terms, use the ``list`` command::
 
     . /usr/lib/ckan/default/bin/activate
     paster --plugin=ckanext-discovery search_suggestions list -c /etc/ckan/default/production.ini

@@ -6,28 +6,30 @@ from __future__ import (absolute_import, division, print_function,
 from ckan import plugins
 
 
-class ISearchHistoryFilter(plugins.Interface):
+class ISearchTermPreprocessor(plugins.Interface):
     '''
-    Filter search queries before they are stored.
+    Preprocess search terms.
 
-    Search suggestions are based on previously stored search queries.
-    They therefore carry the risk that a user is presented with
-    displeasing content originally provided by a different user. To
-    minimize that risk, this interface can be used to filter search
-    queries before they are stored.
+    This interface allows you to preprocess search terms extracted from
+    a user's search query before they are stored or used to generate
+    search suggestions.
     '''
-    def filter_search_query(self, query):
+    def preprocess_search_term(self, term):
         '''
-        Decide whether a search query should be stored.
+        Preprocess and filter a search term.
 
-        ``query`` is a set of normalized search terms extracted from a
-        user's search query.
+        ``term`` is a search term extracted from a user's search query.
 
-        If this method returns a true value then the query terms are
-        stored and may be presented to other users as part of future
-        search suggestions. If this method returns a false value then
-        the query is not stored. The search itself has already taken
-        place when this method is called and is not affected by it.
+        If this method returns a false value then the term is ignored
+        w.r.t. search suggestions. This is useful for filtering stop
+        words and unwelcome content.
+
+        Otherwise the return value of the method is used instead of the
+        original search term. In most cases you simply return the value
+        unchanged.
+
+        Note that all of this only affects the generation of the search
+        suggestions but not the search itself.
         '''
-        return True
+        return term
 
