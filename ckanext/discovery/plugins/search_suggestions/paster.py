@@ -22,12 +22,15 @@ class SearchSuggestionsCommand(CkanCommand):
 
     Sub-commands:
 
-        init: Initialize database tables.
+        init:
+            Initialize database tables. Deletes all stored search terms.
 
-        list: List all currently stored search terms.
+        list:
+            List all currently stored search terms.
 
-        refilter: Re-filter the stored search terms via the current
-            implementations of the ISearchHistoryFilter interface.
+        refilter:
+            Re-filter the stored search terms via the current implementations
+            of the ISearchHistoryFilter interface.
 
     """
     max_args = 1
