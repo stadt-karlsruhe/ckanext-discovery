@@ -139,6 +139,11 @@ filter to the already stored terms use the following command::
     . /usr/lib/ckan/default/bin/activate
     paster --plugin=ckanext-discovery search_suggestions refilter -c /etc/ckan/default/production.ini
 
+To get a list of all currently stored search terms, use the ``list`` command::
+
+    . /usr/lib/ckan/default/bin/activate
+    paster --plugin=ckanext-discovery search_suggestions list -c /etc/ckan/default/production.ini
+
 
 ``similar_datasets``
 ++++++++++++++++++++

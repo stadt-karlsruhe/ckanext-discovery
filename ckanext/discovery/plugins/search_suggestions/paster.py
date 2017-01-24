@@ -24,6 +24,8 @@ class SearchSuggestionsCommand(CkanCommand):
 
         init: Initialize database tables.
 
+        list: List all currently stored search terms.
+
         refilter: Re-filter the stored search terms via the current
             implementations of the ISearchHistoryFilter interface.
 
@@ -39,22 +41,27 @@ class SearchSuggestionsCommand(CkanCommand):
             _error('Missing command name. Try --help.')
         self._load_config()
         cmd = self.args[0]
-        if cmd == 'init':
-            self.init()
-        elif cmd == 'refilter':
-            self.refilter()
-        else:
+        try:
+            method = getattr(self, 'cmd_' + cmd)
+        except AttributeError:
             _error('Uknown command "{}"'.format(cmd))
+        method()
 
-    def init(self):
+    def cmd_init(self):
         from .model import create_tables
         print('Creating database tables...')
         create_tables()
         print('Done.')
 
-    def refilter(self):
+    def cmd_refilter(self):
         from . import refilter
         print('Refiltering stored search terms...')
         refilter()
         print('Done.')
+
+    def cmd_list(self):
+        from ckan.model.meta import Session
+        from .model import SearchTerm
+        for term in Session.query(SearchTerm).yield_per(100):
+            print(term.term)
 
