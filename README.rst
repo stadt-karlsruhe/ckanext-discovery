@@ -7,7 +7,7 @@ powerful built-in search tools, but for users who don't know (yet) what exactly
 they are looking for there is room for improvement.
 
 This extension provides multiple plugins that make it easier for your users to
-find the data they're looking for:
+discover your data:
 
 * search_suggestions_: Provides real-time search suggestions in a drop-down
   box

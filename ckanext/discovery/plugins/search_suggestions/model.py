@@ -96,7 +96,7 @@ class SearchTerm(Object):
         # In our SQLAlchemy version the language cannot be specified in the
         # `match` function, so we construct the query explicitly. See
         # https://bitbucket.org/zzzeek/sqlalchemy/issues/3078
-        tsquery = func.to_tsquery('simple', "'{}':*".format(prefix))
+        tsquery = func.to_tsquery('pg_catalog.simple', "'{}':*".format(prefix))
         return Session.query(cls).filter(
             cls.term_tsvector.op('@@')(tsquery)
         )
@@ -108,7 +108,7 @@ _term_tsvector_trigger = DDL('''
     CREATE TRIGGER discovery_search_term_tsvector_update
     BEFORE INSERT OR UPDATE ON {table}
     FOR EACH ROW EXECUTE PROCEDURE
-    tsvector_update_trigger(term_tsvector, 'simple', term)
+    tsvector_update_trigger(term_tsvector, 'pg_catalog.simple', term)
 '''.format(table=SearchTerm.__tablename__))
 event.listen(SearchTerm.__table__, 'after_create',
              _term_tsvector_trigger.execute_if(dialect='postgresql'))

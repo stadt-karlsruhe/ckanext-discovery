@@ -40,4 +40,7 @@ echo "Moving test.ini into a subdir..."
 mkdir subdir
 mv test.ini subdir
 
+echo "Initializing ckanext-discovery database tables..."
+paster --plugin=ckanext-discovery search_suggestions init -c subdir/test.ini
+
 echo "travis-build.bash is done."

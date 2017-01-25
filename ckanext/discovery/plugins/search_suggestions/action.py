@@ -23,7 +23,7 @@ log = logging.getLogger(__name__)
 
 def search_suggest_schema():
     return {
-        'q': [not_missing, not_empty, unicode]
+        'q': [not_missing, unicode]
     }
 
 
@@ -46,6 +46,7 @@ def _get_score(terms, weights=None):
     ``weights`` is an optional list of weights of the same length as
     ``terms``. If it is not given every term has the same weight.
     '''
+    log.debug('Scoring {}'.format(terms))
     weights = weights or ([1] * len(terms))
     weighted_terms = sorted(zip(terms, weights), key=lambda x: x[0].term)
     score = 0
@@ -55,19 +56,28 @@ def _get_score(terms, weights=None):
                 coocc = CoOccurrence.one(term1=term1, term2=term2)
                 score += (weight1 + weight2) * coocc.similarity
             except NoResultFound:
+                log.debug('  {} and {} have no co-occurrences'.format(
+                         term1.term, term2.term))
                 pass
+    log.debug('  Non-normalized score is {}'.format(score))
     try:
-        return score / (sum(weights) * (len(terms) - 1))
+        score = score / (sum(weights) * (len(terms) - 1))
     except ZeroDivisionError:
         # Either only one term or all weights are zero
-        return 0
+        score = 0
+
+    log.debug('  Final score is {}'.format(score))
+    return score
 
 
 @toolkit.side_effect_free
 @validate(search_suggest_schema)
 def search_suggest_action(context, data_dict):
     '''
-    Get suggested search queries.
+    Search query auto-completion and suggestions.
+
+    Takes a single string parameter ``q`` which contains the search
+    query.
 
     Returns a list of dictionaries, sorted decreasingly by relevance.
     Each dictionary contains two keys ``label`` and ``value``, which
@@ -84,13 +94,13 @@ def search_suggest_action(context, data_dict):
     log.debug('discovery_search_suggest {!r}'.format(data_dict['q']))
     toolkit.check_access('discovery_search_suggest', context, data_dict)
 
-    # In the following, a "term" is always an instance of ``SearchTerm``, and
-    # a "word" is a normalized search token.
+    # In the following, a "term" is always an instance of ``SearchTerm``,
+    # and a "word" is a normalized search token.
 
     q = data_dict['q'].lower()
     words = split_query(q)
     if not words:
-        return
+        return []
     word_set = set(words)
     limit = int(get_config('search_suggestions.limit', 4))
 
@@ -124,15 +134,8 @@ def search_suggest_action(context, data_dict):
     # Step 1: Auto-complete the last word
     #
 
-    if last_word_complete:
-        # Do not provide auto-completion suggestions. However, we need to check
-        # whether the last word is a known term because in that case we take it
-        # into account during context similarity scoring.
-        try:
-            ac_terms = [SearchTerm.one(term=words[-1])]
-        except NoResultFound:
-            ac_terms = []
-    else:
+    ac_terms = []
+    if not last_word_complete:
         ac_terms = SearchTerm.by_prefix(words[-1])
         ac_terms = [t for t in ac_terms if t.term not in words[:-1]]
 
@@ -146,7 +149,6 @@ def search_suggest_action(context, data_dict):
             term_score = t.count / total_count
             context_score = _get_score(context_terms.union((t,)))
             scores[(t,)] = factor * (term_score + num_context * context_score)
-
     log.debug(b'ac_terms = {}'.format(ac_terms))
 
     #
@@ -186,7 +188,6 @@ def search_suggest_action(context, data_dict):
         score = _get_score(terms, [weights[t.term] for t in terms])
         if score > 0:
             scores[ac_ext_terms] = score
-
     log.debug(b'scores = {}'.format(scores))
 
     #
@@ -196,21 +197,19 @@ def search_suggest_action(context, data_dict):
     suggestions = sorted(scores.iterkeys(), key=scores.get, reverse=True)
     suggestions = list(suggestions)[:limit]
     suggestions = [' '.join([t.term for t in terms]) for terms in suggestions]
+    log.debug('suggestions = {}'.format(suggestions))
     if ac_terms:
         prefix = q
 
         # If the query ends with characters that are removed by the
         # normalization then we need to strip them from the suggestions,
         # too.
-        try:
-            i = prefix.rindex(words[-1])
-        except ValueError:
-            pass
-        else:
-            prefix = (prefix[:i] + ' ' + words[-1]).strip()
+        i = prefix.rindex(words[-1])
+        prefix = (prefix[:i].strip() + ' ' + words[-1]).lstrip()
+
         suggestions = [s[len(words[-1]):] for s in suggestions]
     else:
-        prefix = q + ' '
+        prefix = q.strip() + ' '
     return [
         {
             'label': '{}<strong>{}</strong>'.format(prefix, s),

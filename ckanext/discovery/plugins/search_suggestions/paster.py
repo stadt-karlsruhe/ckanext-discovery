@@ -39,7 +39,6 @@ class SearchSuggestionsCommand(CkanCommand):
     summary = __doc__.strip().split('\n')[0]
 
     def command(self):
-        self._load_config()
         if not self.args:
             _error('Missing command name. Try --help.')
         self._load_config()
