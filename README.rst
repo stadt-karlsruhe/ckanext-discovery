@@ -333,6 +333,14 @@ The plugin offers one setting that can be configured via CKAN's
     ckanext.discovery.tag_cloud.num_tags = 20
 
 
+License
+=======
+Copyright (C) 2017 Stadt Karlsruhe (www.karlsruhe.de)
+
+Distributed un der the GNU Affero General Public License. See the file
+``LICENSE`` for details.
+
+
 .. _CKAN: http://ckan.org
 .. _configuration INI: http://docs.ckan.org/en/latest/maintaining/configuration.html#ckan-configuration-file
 .. _package_search: http://docs.ckan.org/en/latest/api/index.html#ckan.logic.action.get.package_search
