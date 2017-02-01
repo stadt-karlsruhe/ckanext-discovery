@@ -14,11 +14,11 @@ import ckan.plugins.toolkit as toolkit
 import ckan.tests.helpers as helpers
 
 from ...plugins.search_suggestions.model import SearchTerm, CoOccurrence
-from ...plugins.search_suggestions import split_query
+from ...plugins.search_suggestions import SearchQuery
 from .. import changed_config, assert_anonymous_access
 
 
-def search_history(s, preprocess=False):
+def search_history(s):
     '''
     Set the search history.
 
@@ -30,20 +30,8 @@ def search_history(s, preprocess=False):
     '''
     Session.query(SearchTerm).delete()
     Session.commit()
-    eq_(len(list(Session.query(SearchTerm))), 0)
-    eq_(len(list(Session.query(CoOccurrence))), 0)
-    for query in s.splitlines():
-        if preprocess:
-            words = split_query(query)
-        else:
-            words = query.split()
-        terms = sorted((SearchTerm.get_or_create(term=t) for t in words),
-                       key=lambda t: t.term)
-        for i, term1 in enumerate(terms):
-            term1.count += 1
-            for term2 in terms[i + 1:]:
-                CoOccurrence.get_or_create(term1=term1, term2=term2).count += 1
-    Session.commit()
+    for string in s.splitlines():
+        SearchQuery(string).store()
 
 
 def suggest(q):
@@ -85,6 +73,10 @@ class TestDiscoverySearchSuggest(helpers.FunctionalTestBase):
         # Last word complete
         q = 'wolf unknown1 unknown2 unknown3 fox '
         assert_suggestions(q, [q + 'chicken'])
+
+        # Earlier terms are not re-suggested even if they are ignored
+        # when generating suggestions
+        assert_suggestions('sheep wolf unknown1 unknown2 unknown4 ', [])
 
     def test_last_word_complete(self):
         '''

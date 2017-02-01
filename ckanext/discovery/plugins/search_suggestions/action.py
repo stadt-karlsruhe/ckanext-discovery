@@ -14,7 +14,7 @@ import ckan.plugins.toolkit as toolkit
 from ckan.lib.navl.validators import not_missing, not_empty
 
 from .model import SearchTerm, CoOccurrence
-from . import split_query
+from . import SearchQuery
 from .. import get_config
 
 
@@ -31,10 +31,6 @@ def search_suggest_schema():
 def search_suggest_auth(context, data_dict):
     # Allow access by everybody
     return {'success': True}
-
-
-# Maximum number of words to take into account when computing suggestions
-_MAX_CONTEXT_WORDS = 4
 
 
 def _get_score(terms, weights=None):
@@ -97,35 +93,14 @@ def search_suggest_action(context, data_dict):
     # In the following, a "term" is always an instance of ``SearchTerm``,
     # and a "word" is a normalized search token.
 
-    q = data_dict['q'].lower()
-    words = split_query(q)
-    if not words:
+    query = SearchQuery(data_dict['q'])
+    if not query.words:
         return []
-    word_set = set(words)
     limit = int(get_config('search_suggestions.limit', 4))
 
-    # If the query ends with a space then we assume the user considers the last
-    # word complete. In that case we won't offer any auto-completions for it.
-    # If the last word is a complete in the sense that there's a corresponding
-    # search term in the DB but it's not followed by a space then we do suggest
-    # completions, but only if they actually extend the word. For example, the
-    # query `play ` (with a trailing space) will not get auto-complete
-    # suggestions, but `play` will get (for example) `playground`.
-    last_word_complete = q[-1].isspace()
-
-    if last_word_complete:
-        context_words = words[-_MAX_CONTEXT_WORDS:]
-    else:
-        context_words = words[-(_MAX_CONTEXT_WORDS + 1):-1]
-    if context_words:
-        context_terms = set(SearchTerm.filter(SearchTerm.term.in_(context_words)))
-    else:
-        context_terms = set()
-
-    log.debug('words = {}'.format(words))
-    log.debug('last_word_complete = {}'.format(last_word_complete))
-    log.debug('context_words = {}'.format(context_words))
-    log.debug(b'context_terms = {}'.format(context_terms))
+    log.debug('words = {}'.format(query.words))
+    log.debug('is_last_word_complete = {}'.format(query.is_last_word_complete))
+    log.debug(b'context_terms = {}'.format(query.context_terms))
 
     # Maps tuples of terms to scores
     scores = {}
@@ -135,19 +110,19 @@ def search_suggest_action(context, data_dict):
     #
 
     ac_terms = []
-    if not last_word_complete:
-        ac_terms = SearchTerm.by_prefix(words[-1])
-        ac_terms = [t for t in ac_terms if t.term not in words[:-1]]
+    if not query.is_last_word_complete:
+        ac_terms = SearchTerm.by_prefix(query.last_word)
+        ac_terms = [t for t in ac_terms if t.term not in query.words[:-1]]
 
         # Score auto-completions
         total_count = sum(t.count for t in ac_terms)
-        num_context = len(context_terms)
+        num_context = len(query.context_terms)
         factor = 1 / (1 + num_context)
         for t in ac_terms:
-            if t.term == words[-1]:
+            if t.term == query.last_word:
                 continue
             term_score = t.count / total_count
-            context_score = _get_score(context_terms.union((t,)))
+            context_score = _get_score(query.context_terms.union((t,)))
             scores[(t,)] = factor * (term_score + num_context * context_score)
     log.debug(b'ac_terms = {}'.format(ac_terms))
 
@@ -157,14 +132,14 @@ def search_suggest_action(context, data_dict):
 
     # Get extension candidates
     ext_terms = set()
-    for term in context_terms.union(ac_terms):
+    for term in query.context_terms.union(ac_terms):
         cooccs = CoOccurrence.for_term(term) \
                              .order_by(CoOccurrence.count) \
                              .limit(limit)
         for coocc in cooccs:
             other = coocc.term2 if coocc.term1 == term else coocc.term1
             ext_terms.add(other)
-    ext_terms = [t for t in ext_terms if t.term not in word_set]
+    ext_terms = [t for t in ext_terms if t.term not in query.words]
     log.debug(b'ext_terms = {}'.format(ext_terms))
 
     # Combine extension candidates with auto-completion suggestions
@@ -180,11 +155,11 @@ def search_suggest_action(context, data_dict):
     # we're suggesting.
     weights = collections.defaultdict(int)
     weights.update((t[0].term, s) for t, s in scores.iteritems())
-    weights.update((w, 1) for w in words)
+    weights.update((w, 1) for w in query.words)
 
     # Score extension candidates
     for ac_ext_terms in ac_ext_candidates:
-        terms = list(context_terms.union(ac_ext_terms))
+        terms = list(query.context_terms.union(ac_ext_terms))
         score = _get_score(terms, [weights[t.term] for t in terms])
         if score > 0:
             scores[ac_ext_terms] = score
@@ -199,17 +174,17 @@ def search_suggest_action(context, data_dict):
     suggestions = [' '.join([t.term for t in terms]) for terms in suggestions]
     log.debug('suggestions = {}'.format(suggestions))
     if ac_terms:
-        prefix = q
+        prefix = query.string
 
         # If the query ends with characters that are removed by the
         # normalization then we need to strip them from the suggestions,
         # too.
-        i = prefix.rindex(words[-1])
-        prefix = (prefix[:i].strip() + ' ' + words[-1]).lstrip()
+        i = prefix.rindex(query.last_word)
+        prefix = (prefix[:i].strip() + ' ' + query.last_word).lstrip()
 
-        suggestions = [s[len(words[-1]):] for s in suggestions]
+        suggestions = [s[len(query.last_word):] for s in suggestions]
     else:
-        prefix = q.strip() + ' '
+        prefix = query.string.strip() + ' '
     return [
         {
             'label': '{}<strong>{}</strong>'.format(prefix, s),
