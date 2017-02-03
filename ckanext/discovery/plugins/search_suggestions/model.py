@@ -59,15 +59,19 @@ class Object(Base):
 
     @classmethod
     def one(cls, **kwargs):
-        return Session.query(cls).filter_by(**kwargs).one()
+        return cls.query().filter_by(**kwargs).one()
 
     @classmethod
     def filter_by(cls, **kwargs):
-        return Session.query(cls).filter_by(**kwargs)
+        return cls.query().filter_by(**kwargs)
 
     @classmethod
     def filter(cls, *args, **kwargs):
-        return Session.query(cls).filter(*args, **kwargs)
+        return cls.query().filter(*args, **kwargs)
+
+    @classmethod
+    def query(cls):
+        return Session.query(cls)
 
 
 class SearchTerm(Object):
@@ -97,7 +101,7 @@ class SearchTerm(Object):
         # `match` function, so we construct the query explicitly. See
         # https://bitbucket.org/zzzeek/sqlalchemy/issues/3078
         tsquery = func.to_tsquery('pg_catalog.simple', "'{}':*".format(prefix))
-        return Session.query(cls).filter(
+        return cls.filter(
             cls.term_tsvector.op('@@')(tsquery)
         )
 
@@ -150,6 +154,16 @@ class CoOccurrence(Object):
         Query all co-occurrences of a ``SearchTerm``.
         '''
         return cls.filter((cls.term1 == term) | (cls.term2 == term))
+
+    @classmethod
+    def for_words(cls, word1, word2):
+        '''
+        The co-occurrence for two words.
+        '''
+        word1, word2 = sorted([word1, word2])
+        term1 = SearchTerm.get_or_create(term=word1)
+        term2 = SearchTerm.get_or_create(term=word2)
+        return cls.get_or_create(term1=term1, term2=term2)
 
     def __repr__(self):
         r = '<{} "{}", "{}">'.format(self.__class__.__name__,

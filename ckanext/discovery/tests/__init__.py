@@ -7,13 +7,15 @@ Helpers for testing ``ckanext.discovery``.
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
+import contextlib
+import functools
+
 from ckan.tests.helpers import call_action
 
 
 try:
     from ckan.tests.helpers import changed_config
 except ImportError:
-    import contextlib
     from ckan.common import config
 
     # Copied from CKAN 2.7 to allow testing on 2.6
@@ -53,4 +55,38 @@ def assert_anonymous_access(action, **kwargs):
     except NotAuthorized:
         raise AssertionError('"{}" cannot be called anonymously.'.format(
                              action))
+
+
+# Adapted from ckanext-extractor
+def with_plugin(cls):
+    '''
+    Activate a plugin during a function's execution.
+
+    The plugin instance is passed to the function as an additional
+    parameter.
+    '''
+    def decorator(f):
+        @functools.wraps(f)
+        def wrapped(*args, **kwargs):
+            with temporarily_enabled_plugin(cls) as plugin:
+                args = list(args) + [plugin]
+                return f(*args, **kwargs)
+        return wrapped
+    return decorator
+
+
+@contextlib.contextmanager
+def temporarily_enabled_plugin(cls):
+    '''
+    Context manager for temporarily enabling a plugin.
+
+    Returns the plugin instance.
+    '''
+    plugin = cls()
+    plugin.activate()
+    try:
+        plugin.enable()
+        yield plugin
+    finally:
+        plugin.disable()
 

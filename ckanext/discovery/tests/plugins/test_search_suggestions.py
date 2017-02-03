@@ -7,15 +7,20 @@ Tests for ``ckanext.discovery.plugins.search_suggestions``.
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
+import mock
 from nose.tools import raises, eq_, ok_
 
 from ckan.model.meta import Session
 import ckan.plugins.toolkit as toolkit
 import ckan.tests.helpers as helpers
+from ckan.plugins import implements, SingletonPlugin
 
 from ...plugins.search_suggestions.model import SearchTerm, CoOccurrence
-from ...plugins.search_suggestions import SearchQuery
-from .. import changed_config, assert_anonymous_access
+from ...plugins.search_suggestions import (SearchQuery, preprocess_search_term,
+                                           reprocess)
+from ...plugins.search_suggestions.interfaces import ISearchTermPreprocessor
+from .. import (changed_config, assert_anonymous_access, with_plugin,
+                temporarily_enabled_plugin)
 
 
 def search_history(s):
@@ -178,4 +183,153 @@ class TestDiscoverySearchSuggest(helpers.FunctionalTestBase):
         ''')
         assert_suggestions('cat mo!', ['cat mouse'])
 
+
+class TestSearchQuery(object):
+    '''
+    Tests for ``SearchQuery``.
+    '''
+    def test_conversion_to_lowercase(self):
+        '''
+        Search queries are converted to lower-case.
+        '''
+        eq_(SearchQuery('FOO! bar?').string, 'foo! bar?')
+
+    def test_query_splitting(self):
+        '''
+        Query strings are correctly split into words.
+        '''
+        cases = [
+            ['single-word-with-hyphens', 'single-word-with-hyphens'],
+            ['-- trailing- -leading - -- ---', 'trailing leading'],
+            ['1-2 3--4 -5 6- 7', '1-2 3 4 5 6 7'],
+            ['\n \t some\twhite\nspace  \t \n', 'some white space'],
+            ['Ünïçödè çháraċtèrs', 'ünïçödè çháraċtèrs'],
+            ['!ä_b?c=d<è>f:g#h(i)j[k]', 'ä b c d è f g h i j k'],
+        ]
+        for string, expected in cases:
+            eq_(SearchQuery(string).words, expected.split())
+
+    @mock.patch('ckanext.discovery.plugins.search_suggestions.preprocess_search_term',
+                return_value='dog')
+    def test_preprocessing(self, preprocess_search_term):
+        '''
+        Query words are preprocessed via ``preprocess_search_term``.
+        '''
+        SearchQuery('fox dog chicken')
+        eq_(preprocess_search_term.mock_calls,
+            [mock.call('fox'), mock.call('dog'), mock.call('chicken')])
+
+    def test_is_last_word_complete(self):
+        '''
+        Completion status of last word is computed correctly.
+        '''
+        cases = [
+            ['', True],
+            [' ', True],
+            ['dog fox ', True],
+            ['dog fox', False],
+        ]
+        for string, expected in cases:
+            eq_(SearchQuery(string).is_last_word_complete, expected)
+
+    def test_last_word(self):
+        '''
+        Last word is computed correctly.
+        '''
+        cases = [
+            ['dog', 'dog'],
+            ['dog fox', 'fox'],
+            ['dog fox wolf', 'wolf'],
+            ['dog ', 'dog'],
+            ['dog\t', 'dog'],
+            ['dog\n', 'dog'],
+            ['fox dog ', 'dog'],
+            ['fox dog\t', 'dog'],
+            ['fox dog\n', 'dog'],
+        ]
+        for string, expected in cases:
+            eq_(SearchQuery(string).last_word, expected)
+
+    @raises(IndexError)
+    def test_last_word_for_empty_query(self):
+        '''
+        Can't get the last word of an empty query
+        '''
+        SearchQuery('  \t \n  ').last_word
+
+    def test_store(self):
+        '''
+        Queries are stored correctly.
+        '''
+        search_history('')
+        SearchQuery('dog cat').store()
+        SearchQuery('wolf dog fox').store()
+        SearchQuery('chicken').store()
+        SearchQuery('dog cat chicken').store()
+        eq_(SearchTerm.get_or_create(term='dog').count, 3)
+        eq_(SearchTerm.get_or_create(term='cat').count, 2)
+        eq_(SearchTerm.get_or_create(term='wolf').count, 1)
+        eq_(SearchTerm.get_or_create(term='fox').count, 1)
+        eq_(SearchTerm.get_or_create(term='chicken').count, 2)
+        eq_(CoOccurrence.for_words('dog', 'cat').count, 2)
+        eq_(CoOccurrence.for_words('wolf', 'dog').count, 1)
+        eq_(CoOccurrence.for_words('wolf', 'fox').count, 1)
+        eq_(CoOccurrence.for_words('dog', 'fox').count, 1)
+        eq_(CoOccurrence.for_words('dog', 'chicken').count, 1)
+        eq_(CoOccurrence.for_words('cat', 'chicken').count, 1)
+        eq_(CoOccurrence.for_words('cat', 'chicken').count, 1)
+        eq_(CoOccurrence.for_words('wolf', 'chicken').count, 0)
+        eq_(CoOccurrence.for_words('fox', 'chicken').count, 0)
+        eq_(CoOccurrence.for_words('fox', 'cat').count, 0)
+        eq_(CoOccurrence.for_words('wolf', 'cat').count, 0)
+
+
+class MockSearchTermPreprocessor(SingletonPlugin):
+    '''
+    Helper for ``TestPreprocessSearchTerm`` and ``TestReprocess``.
+    '''
+    implements(ISearchTermPreprocessor)
+
+    def preprocess_search_term(self, term):
+        if term == 'stopword':
+            return False
+        if term == 'bad-word':
+            return ''
+        if term == 'replace':
+            return '-Ä_b-c$z2*3 f-'
+        return term
+
+
+class TestPreprocessSearchTerm(object):
+    '''
+    Test ``preprocess_search_term``.
+    '''
+    @with_plugin(MockSearchTermPreprocessor)
+    def test_preprocess_search_term(self, plugin):
+        cases = [
+            ['stopword', False],
+            ['bad-word', False],
+            ['replace', 'äb-cz23f'],
+            ['-Ä_b-c$z2*3 f-', 'äb-cz23f'],
+        ]
+        for term, expected in cases:
+            eq_(preprocess_search_term(term), expected)
+
+
+class TestReprocess(object):
+    '''
+    Test ``reprocess``.
+    '''
+    def test_reprocess(self):
+        search_history('stopword bad-word replace other')
+        with temporarily_enabled_plugin(MockSearchTermPreprocessor):
+            reprocess()
+        terms = set(t.term for t in SearchTerm.query())
+        eq_(terms, {'äb-cz23f', 'other'})
+        cooccs = set((c.term1.term, c.term2.term)
+                     for c in CoOccurrence.query())
+        eq_(cooccs, {('other', 'äb-cz23f')})
+
+
+# TODO: Test automatic search query storage
 
