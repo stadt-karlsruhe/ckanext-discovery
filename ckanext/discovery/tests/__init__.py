@@ -30,6 +30,59 @@ except ImportError:
             config.update(_original_config)
 
 
+try:
+    from ckan.tests.lib.test_cli import paster
+except ImportError:
+    import sys
+    from io import StringIO
+    from paste.script.command import run
+    from ckan.common import config
+
+    # Copied from CKAN 2.7 to allow testing on 2.6
+    def paster(*args, **kwargs):
+        '''
+        Call a paster command.
+
+        All arguments are parsed and passed on to the command. The
+        ``--config`` option is automatically appended.
+
+        By default, an ``AssertionError`` is raised if the command exits
+        with a non-zero return code or if anything is written to STDERR.
+        Pass ``fail_on_error=False`` to disable this behavior.
+
+        Example::
+
+            code, stdout, stderr = paster(u'jobs', u'list')
+            assert u'My Job Title' in stdout
+
+            code, stdout, stderr = paster(u'jobs', u'foobar',
+                                         fail_on_error=False)
+            assert code == 1
+            assert u'Unknown command' in stderr
+
+        Any ``SystemExit`` raised by the command is swallowed.
+
+        :returns: A tuple containing the return code, the content of
+            STDOUT, and the content of STDERR.
+        '''
+        fail_on_error = kwargs.pop(u'fail_on_error', True)
+        args = list(args) + [u'--config=' + config[u'__file__']]
+        sys.stdout, sys.stderr = StringIO(u''), StringIO(u'')
+        code = 0
+        try:
+            run(args)
+        except SystemExit as e:
+            code = e.code
+        finally:
+            stdout, stderr = sys.stdout.getvalue(), sys.stderr.getvalue()
+            sys.stdout, sys.stderr = sys.__stdout__, sys.__stderr__
+        if code != 0 and fail_on_error:
+            raise AssertionError(u'Paster command exited with non-zero return code {}: {}'.format(code, stderr))
+        if stderr.strip() and fail_on_error:
+            raise AssertionError(u'Paster command wrote to STDERR: {}'.format(stderr))
+        return code, stdout, stderr
+
+
 # Copied from ckanext-extractor
 def call_action_with_auth(action, context=None, **kwargs):
     """

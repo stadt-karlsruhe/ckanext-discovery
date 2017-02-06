@@ -20,7 +20,7 @@ from ...plugins.search_suggestions import (SearchQuery, preprocess_search_term,
                                            reprocess)
 from ...plugins.search_suggestions.interfaces import ISearchTermPreprocessor
 from .. import (changed_config, assert_anonymous_access, with_plugin,
-                temporarily_enabled_plugin)
+                temporarily_enabled_plugin, paster)
 
 
 def search_history(s):
@@ -331,5 +331,27 @@ class TestReprocess(object):
         eq_(cooccs, {('other', 'äb-cz23f')})
 
 
+class TestPaster(object):
+    '''
+    Test paster CLI commands.
+    '''
+    def test_list(self):
+        search_history('cat dog wolf')
+        stdout = paster('search_suggestions', 'list')[1]
+        words = set(stdout.strip().splitlines())
+        eq_(words, {'cat', 'dog', 'wolf'})
+
+    @mock.patch('ckanext.discovery.plugins.search_suggestions.reprocess')
+    def test_reprocess(self, reprocess):
+        paster('search_suggestions', 'reprocess')
+        reprocess.assert_called()
+
+    @mock.patch('ckanext.discovery.plugins.search_suggestions.model.create_tables')
+    def test_init(self, create_tables):
+        paster('search_suggestions', 'init')
+        create_tables.assert_called()
+
+
+# TODO: Test UI
 # TODO: Test automatic search query storage
 
