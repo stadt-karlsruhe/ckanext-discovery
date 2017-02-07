@@ -8,7 +8,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import mock
-from nose.tools import raises, eq_, ok_
+from nose.tools import assert_in, assert_not_in, raises, eq_, ok_
 
 from ckan.model.meta import Session
 import ckan.plugins.toolkit as toolkit
@@ -352,6 +352,29 @@ class TestPaster(object):
         create_tables.assert_called()
 
 
-# TODO: Test UI
-# TODO: Test automatic search query storage
+class TestUI(helpers.FunctionalTestBase):
+    '''
+    Test web UI.
+    '''
+    def test_resources(self):
+        '''
+        JS and CSS resources are included correctly.
+        '''
+        app = self._get_test_app()
+        response = app.get('/')
+        body = response.body.decode('utf-8')
+        assert_in('search_suggestions.css', body)
+        assert_in('search_suggestions.js', body)
+
+    @helpers.change_config('ckanext.discovery.search_suggestions.provide_suggestions',
+                           'false')
+    def test_disabled_suggestions(self):
+        '''
+        Suggestions can be disabled.
+        '''
+        app = self._get_test_app()
+        response = app.get('/')
+        body = response.body.decode('utf-8')
+        assert_not_in('search_suggestions.css', body)
+        assert_not_in('search_suggestions.js', body)
 
