@@ -182,12 +182,14 @@ class SearchSuggestionsPlugin(plugins.SingletonPlugin):
     #
 
     def after_search(self, search_results, search_params):
+        log.debug('after_search {}'.format(search_params))
         if not toolkit.asbool(get_config('search_suggestions.store_queries',
                               True)):
             return search_results
         try:
             q = search_params['q']
             if not _is_user_text_search(toolkit.c, q):
+                log.debug('Not a user search')
                 return search_results
             # TODO: If a user performs a text-based search and then
             # continuously refines the result via facets then we end up with

@@ -9,6 +9,7 @@ from __future__ import (absolute_import, division, print_function,
 
 import mock
 from nose.tools import assert_in, assert_not_in, raises, eq_, ok_
+from routes import url_for
 
 from ckan.model.meta import Session
 import ckan.plugins.toolkit as toolkit
@@ -17,13 +18,14 @@ from ckan.plugins import implements, SingletonPlugin
 
 from ...plugins.search_suggestions.model import SearchTerm, CoOccurrence
 from ...plugins.search_suggestions import (SearchQuery, preprocess_search_term,
-                                           reprocess)
+                                           reprocess,
+                                           log as search_suggestions_log)
 from ...plugins.search_suggestions.interfaces import ISearchTermPreprocessor
 from .. import (changed_config, assert_anonymous_access, with_plugin,
-                temporarily_enabled_plugin, paster)
+                temporarily_enabled_plugin, paster, recorded_logs)
 
 
-def search_history(s):
+def search_history(s=''):
     '''
     Set the search history.
 
@@ -33,10 +35,19 @@ def search_history(s):
     simply split at whitespace. Otherwise the usual query splitting and
     term-postprocessing is used.
     '''
-    Session.query(SearchTerm).delete()
+    SearchTerm.query().delete()
     Session.commit()
     for string in s.splitlines():
         SearchQuery(string).store()
+
+
+def assert_empty_search_history():
+    '''
+    Assert that the search history is empty.
+    '''
+    terms = [t.term for t in SearchTerm.query()]
+    eq_(len(terms), 0, ('Search history should be empty but contains the ' +
+        'terms {}').format(terms))
 
 
 def suggest(q):
@@ -261,7 +272,7 @@ class TestSearchQuery(object):
         '''
         Queries are stored correctly.
         '''
-        search_history('')
+        search_history()
         SearchQuery('dog cat').store()
         SearchQuery('wolf dog fox').store()
         SearchQuery('chicken').store()
@@ -297,6 +308,8 @@ class MockSearchTermPreprocessor(SingletonPlugin):
             return ''
         if term == 'replace':
             return '-Ä_b-c$z2*3 f-'
+        if term == 'error':
+            raise ValueError('Handle me, please!')
         return term
 
 
@@ -329,6 +342,116 @@ class TestReprocess(object):
         cooccs = set((c.term1.term, c.term2.term)
                      for c in CoOccurrence.query())
         eq_(cooccs, {('other', 'äb-cz23f')})
+
+
+class TestISearchTermPreprocessor(object):
+    '''
+    Test ``ISearchTermPreprocessor``.
+    '''
+    def test_default_implementation(self):
+        plugin = ISearchTermPreprocessor()
+        eq_(plugin.preprocess_search_term('cat'), 'cat')
+
+
+class TestQueryStorage(helpers.FunctionalTestBase):
+    '''
+    Test automatic search query storage.
+    '''
+    def web_request(self, controller, action, **kwargs):
+        '''
+        Perform a web-request.
+
+        All keyword arguments are passed as URL-parameters to the given
+        controller action.
+
+        Returns the response.
+        '''
+        app = self._get_test_app()
+        url = url_for(controller=controller, action=action)
+        return app.get(url, params=kwargs)
+
+    def test_text_search(self):
+        '''
+        Text searches are stored.
+        '''
+        search_history()
+        self.web_request('package', 'search', q='dog fox')
+        self.web_request('package', 'search', q='dog cat')
+        eq_(SearchTerm.get_or_create(term='dog').count, 2)
+        eq_(SearchTerm.get_or_create(term='cat').count, 1)
+        eq_(SearchTerm.get_or_create(term='fox').count, 1)
+        eq_(CoOccurrence.for_words('dog', 'cat').count, 1)
+        eq_(CoOccurrence.for_words('dog', 'fox').count, 1)
+        eq_(CoOccurrence.for_words('fox', 'cat').count, 0)
+
+    def test_search_by_tag(self):
+        '''
+        Searches by tag only are not stored.
+        '''
+        search_history()
+        self.web_request('package', 'search', tags='dog')
+        assert_empty_search_history()
+
+    def test_search_by_group(self):
+        '''
+        Searches by group only are not stored.
+        '''
+        search_history()
+        self.web_request('package', 'search', groups='dog')
+        assert_empty_search_history()
+
+    def test_group_search(self):
+        '''
+        Group searches are not stored.
+        '''
+        search_history()
+        self.web_request('group', 'search', q='cat')
+        assert_empty_search_history()
+
+    def test_user_search(self):
+        '''
+        User searches are not stored.
+        '''
+        search_history()
+        self.web_request('user', 'search', q='cat')
+        assert_empty_search_history()
+
+    def test_api_search(self):
+        '''
+        Package searches via the API are not stored.
+        '''
+        cases = [
+            ['package_search', {'q': 'cat'}],
+            ['resource_search', {'query': 'name:cat'}],
+            ['tag_search', {'query': 'cat'}],
+        ]
+        search_history()
+        for func, params in cases:
+            helpers.call_action(func, **params)
+            assert_empty_search_history()
+
+    @helpers.change_config('ckanext.discovery.search_suggestions.store_queries',
+                           'false')
+    def test_disabled_storage(self):
+        '''
+        Storing queries can be disabled.
+        '''
+        search_history()
+        self.web_request('package', 'search', q='dog fox')
+        assert_empty_search_history()
+
+    def test_error_handling(self):
+        '''
+        Errors during search term storage are logged and don't cause the
+        search to fail.
+        '''
+        with recorded_logs(search_suggestions_log) as logs:
+            with temporarily_enabled_plugin(MockSearchTermPreprocessor):
+                # This raises an exception if the request fails, e.g. due to an
+                # internal server error caused by our exception not being
+                # handled correctly.
+                self.web_request('package', 'search', q='error')
+        logs.assert_log('error', 'An exception occurred while storing a search query')
 
 
 class TestPaster(object):
