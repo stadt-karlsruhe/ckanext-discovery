@@ -25,7 +25,10 @@ echo "Configuring Solr"
 # Travis single-core. See https://github.com/ckan/ckan/issues/2972
 sed -i -e 's/solr_url.*/solr_url = http:\/\/127.0.0.1:8983\/solr/' ckan/test-core.ini
 sudo cp ckan/ckan/config/solr/schema.xml /etc/solr/conf/schema.xml
-sudo service tomcat restart
+# The name of the Tomcat service depends on the currently installed version
+TOMCAT_SERVICE=$(sudo service --status-all 2>&1 | awk '/tomcat/ { print $4 }')
+echo "Tomcat's service is $TOMCAT_SERVICE"
+sudo service $TOMCAT_SERVICE restart
 
 echo "Creating the PostgreSQL user and database..."
 sudo -u postgres psql -c "CREATE USER ckan_default WITH PASSWORD 'pass';"
