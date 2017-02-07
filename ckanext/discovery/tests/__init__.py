@@ -9,6 +9,7 @@ from __future__ import (absolute_import, division, print_function,
 
 import contextlib
 import functools
+import re
 
 from ckan.tests.helpers import call_action
 
@@ -87,7 +88,6 @@ try:
 except ImportError:
     import collections
     import logging
-    import re
 
     # Copied from CKAN 2.7
     @contextlib.contextmanager
@@ -276,4 +276,14 @@ def temporarily_enabled_plugin(cls):
         yield plugin
     finally:
         plugin.disable()
+
+
+def assert_regex_search(regex, string):
+    '''
+    Assert that a regular expression search finds a match.
+    '''
+    m = re.search(regex, string, flags=re.UNICODE)
+    if m is None:
+        raise AssertionError('{!r} finds no match in {!r}'.format(regex,
+                             string))
 
