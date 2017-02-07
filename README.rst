@@ -2,6 +2,9 @@ ckanext-discovery
 #################
 *A CKAN extension to help people discover your datasets*
 
+.. image:: https://travis-ci.org/stadt-karlsruhe/ckanext-discovery.svg?branch=master
+    :target: https://travis-ci.org/stadt-karlsruhe/ckanext-discovery
+
 Open data can only be used for awesome things if it is found. CKAN_ has
 powerful built-in search tools, but for users who don't know (yet) what exactly
 they are looking for there is room for improvement.
