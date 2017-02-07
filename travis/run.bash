@@ -9,6 +9,5 @@ nosetests --ckan \
           --with-coverage \
           --cover-package=ckanext.discovery \
           --cover-inclusive \
-          --cover-erase \
-          --cover-tests
+          --cover-erase
 
