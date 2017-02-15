@@ -9,6 +9,7 @@ import json
 import ckan.plugins as plugins
 import ckan.plugins.toolkit as toolkit
 from ckan.lib.search.common import make_connection
+from ckan.common import config
 
 
 log = logging.getLogger(__name__)
@@ -32,13 +33,16 @@ def get_similar_datasets(id, max_num=5, min_score=0):
     query = 'id:"{}"'.format(id)
     fields_to_compare = 'text'
     fields_to_return = 'id validated_data_dict score'
+    site_id = config.get('ckan.site_id')
+    filter_query = '+site_id:"{}" +dataset_type:dataset'.format(site_id)
     results = solr.more_like_this(q=query,
                                   mltfl=fields_to_compare,
                                   fl=fields_to_return,
+                                  fq=filter_query,
                                   rows=max_num)
     log.debug('Similar datasets for {}:'.format(id))
     for doc in results.docs:
-        log.debug('  {} (score {})'.format(doc['id'], doc['score']))
+        log.debug('  {id} (score {score})'.format(**doc))
     docs = [doc for doc in results.docs if doc['score'] >= min_score]
     return [json.loads(doc['validated_data_dict']) for doc in docs]
 
