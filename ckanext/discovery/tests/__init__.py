@@ -11,7 +11,10 @@ import contextlib
 import functools
 import re
 
+from ckan.model import Package
+from ckan.model.meta import Session
 from ckan.tests.helpers import call_action
+from ckan.logic import NotAuthorized
 
 
 try:
@@ -286,4 +289,12 @@ def assert_regex_search(regex, string):
     if m is None:
         raise AssertionError('{!r} finds no match in {!r}'.format(regex,
                              string))
+
+
+def purge_datasets():
+    '''
+    Purge all existing datasets.
+    '''
+    for pkg in Session.query(Package):
+        call_action('dataset_purge', id=pkg.id)
 

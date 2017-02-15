@@ -13,12 +13,10 @@ import mock
 from nose.tools import assert_in, eq_
 
 import ckan.tests.helpers as helpers
-from ckan.model import Package
-from ckan.model.meta import Session
 import ckan.tests.factories as factories
 
 from ...plugins.tag_cloud import bin_tags
-from .. import assert_regex_search, changed_config
+from .. import assert_regex_search, changed_config, purge_datasets
 
 
 def set_tags(**kwargs):
@@ -30,8 +28,7 @@ def set_tags(**kwargs):
 
     Before new datasets are created all existing datasets are purged.
     '''
-    for pkg in Session.query(Package):
-        helpers.call_action('dataset_purge', id=pkg.id)
+    purge_datasets()
     for tag, count in kwargs.iteritems():
         for i in range(count):
             factories.Dataset(tags=[{'name': tag}])
