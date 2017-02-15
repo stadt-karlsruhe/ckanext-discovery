@@ -15,7 +15,7 @@ from ckan.common import config
 log = logging.getLogger(__name__)
 
 
-def get_similar_datasets(id, max_num=5, min_score=0):
+def get_similar_datasets(id, max_num=5):
     '''
     Get similar datasets for a dataset.
 
@@ -23,9 +23,6 @@ def get_similar_datasets(id, max_num=5, min_score=0):
         ID, passing the name is not supported.
 
     :param int max_num: Maximum number of datasets to return.
-
-    :param float min_score: Minimum required score. Similar datasets
-        returned by Solr that have a lower score will be ignored.
 
     :return: A list of similar dataset dicts sorted by decreasing score.
     '''
@@ -45,8 +42,7 @@ def get_similar_datasets(id, max_num=5, min_score=0):
     for doc in results.docs:
         log.debug('  {id} (score {score})'.format(**doc))
         print('  {id} (score {score})'.format(**doc))
-    docs = [doc for doc in results.docs if doc['score'] >= min_score]
-    return [json.loads(doc['validated_data_dict']) for doc in docs]
+    return [json.loads(doc['validated_data_dict']) for doc in results.docs]
 
 
 class SimilarDatasetsPlugin(plugins.SingletonPlugin):

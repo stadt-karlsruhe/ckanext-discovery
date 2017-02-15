@@ -58,20 +58,6 @@ class TestGetSimilarDatasets(helpers.FunctionalTestBase):
             eq_(len(get_similar_datasets(id, max_num=max_num)),
                 min(len(self.datasets) - 1, max_num))
 
-    def test_min_score(self):
-        '''
-        The minimum relation-score can be set.
-        '''
-        id = self.datasets[0]['id']
-        n = len(self.datasets)
-        # It seems that Solr scores are not as deterministic as one would hope.
-        # We therefore only do some really basic checks here.
-        num1 = len(get_similar_datasets(id, max_num=n, min_score=0))
-        num2 = len(get_similar_datasets(id, max_num=n, min_score=1))
-        num3 = len(get_similar_datasets(id, max_num=n, min_score=2))
-        print((num1, num2, num3))
-        ok_(num1 > num2 > num3)
-
     def test_other_site_id(self):
         '''
         Datasets with a different site ID are ignored.

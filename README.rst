@@ -242,17 +242,12 @@ detailed view of each dataset::
 
 Configuration
 -------------
-The plugin offers two settings that can be configured in CKAN's
+The plugin offers one setting that can be configured in CKAN's
 `configuration INI`_::
 
     # Maximum number of similar datasets to list. Defaults to 5. Note that less
     # datasets may be shown if Solr doesn't find enough similar datasets.
     ckanext.discovery.similar_datasets.max_num = 5
-
-    # Minimum similarity score. Similar datasets for which Solr reports a lower
-    # similarity score are not shown. Defaults to 0, which means that all
-    # documents returned by Solr are shown.
-    ckanext.discovery.similar_datasets.min_score = 0
 
 
 ``solr_query_config``
