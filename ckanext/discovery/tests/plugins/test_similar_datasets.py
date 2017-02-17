@@ -36,6 +36,16 @@ class TestGetSimilarDatasets(helpers.FunctionalTestBase):
         for dataset in self.datasets:
             print('  {} "{}"'.format(dataset['id'], dataset['title']))
 
+    def assert_not_similar(self, datasets):
+        '''
+        Assert that datasets are not similar to the first test dataset.
+        '''
+        max_num = len(self.datasets) + len(datasets)
+        similar = get_similar_datasets(self.datasets[0]['id'], max_num=max_num)
+        ids = set(dataset['id'] for dataset in similar)
+        for dataset in datasets:
+            assert_not_in(dataset['id'], ids)
+
     def test_normal_call(self):
         similar = get_similar_datasets(self.datasets[0]['id'])
         ids = set(dataset['id'] for dataset in similar)
@@ -63,12 +73,8 @@ class TestGetSimilarDatasets(helpers.FunctionalTestBase):
         Datasets with a different site ID are ignored.
         '''
         with changed_config('ckan.site_id', 'a-different-instance'):
-            other_site_dataset = factories.Dataset(
-                    title=self.datasets[0]['title'])
-        similar = get_similar_datasets(self.datasets[0]['id'],
-                                       max_num=len(self.datasets) + 1)
-        ids = set(dataset['id'] for dataset in similar)
-        assert_not_in(other_site_dataset['id'], ids)
+            other_site = factories.Dataset(title=self.datasets[0]['title'])
+        self.assert_not_similar([other_site])
 
     def test_other_dataset_type(self):
         '''
@@ -76,8 +82,24 @@ class TestGetSimilarDatasets(helpers.FunctionalTestBase):
         '''
         non_dataset = factories.Dataset(title=self.datasets[0]['title'],
                                         type='not-a-dataset')
-        similar = get_similar_datasets(self.datasets[0]['id'],
-                                       max_num=len(self.datasets) + 1)
-        ids = set(dataset['id'] for dataset in similar)
-        assert_not_in(non_dataset['id'], ids)
+        self.assert_not_similar([non_dataset])
+
+    def test_not_active(self):
+        '''
+        Datasets that are not active are ignored.
+        '''
+        deleted = factories.Dataset(title=self.datasets[0]['title'],
+                                    state='deleted')
+        draft = factories.Dataset(title=self.datasets[0]['title'],
+                                  state='draft')
+        self.assert_not_similar([deleted, draft])
+
+    def test_not_public(self):
+        '''
+        Datasets that are not public are ignored.
+        '''
+        org = factories.Organization()
+        private = factories.Dataset(title=self.datasets[0]['title'],
+                                    owner_org=org['id'], private=True)
+        self.assert_not_similar([private])
 

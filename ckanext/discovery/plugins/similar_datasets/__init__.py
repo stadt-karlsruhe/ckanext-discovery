@@ -31,7 +31,12 @@ def get_similar_datasets(id, max_num=5):
     fields_to_compare = 'text'
     fields_to_return = 'id validated_data_dict score'
     site_id = config.get('ckan.site_id')
-    filter_query = '+site_id:"{}" +dataset_type:dataset'.format(site_id)
+    filter_query = '''
+        +site_id:"{}"
+        +dataset_type:dataset
+        +state:active
+        +capacity:public
+        '''.format(site_id)
     results = solr.more_like_this(q=query,
                                   mltfl=fields_to_compare,
                                   fl=fields_to_return,
