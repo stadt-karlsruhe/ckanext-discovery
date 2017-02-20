@@ -39,9 +39,7 @@ Example:
                         {% set notes = h.truncate(pkg_dict.notes, 200) %}
                         <li class="nav-item">
                             {% block dataset scoped %}
-                                 <a href="{{ url }}" title="{{ notes }}">
-                                    {{ pkg_dict.title }}
-                                </a>
+                                 <a href="{{ url }}" title="{{ notes }}">{{ pkg_dict.title }}</a>
                             {% endblock %}
                         </li>
                     {% endfor %}
