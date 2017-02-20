@@ -42,7 +42,7 @@ def _get_score(terms, weights=None):
     ``weights`` is an optional list of weights of the same length as
     ``terms``. If it is not given every term has the same weight.
     '''
-    log.debug('Scoring {}'.format(terms))
+    log.debug('Scoring {}'.format([t.term for t in terms]))
     weights = weights or ([1] * len(terms))
     weighted_terms = sorted(zip(terms, weights), key=lambda x: x[0].term)
     score = 0
