@@ -1,6 +1,6 @@
 {#
 
-List of similar datasets.
+Sidebar-block with a list of similar datasets.
 
 
 Parameters:
@@ -14,7 +14,7 @@ Parameters:
 
 Example:
 
-    {% snippet 'ckanext-discovery/snippets/similar_datasets',
+    {% snippet 'ckanext-discovery/snippets/similar_datasets.html',
                id=c.pkg_dict.id,
                max_num=3 %}
 
@@ -23,32 +23,34 @@ Example:
 {% set max_num = max_num or h.discovery_get_config('similar_datasets.max_num', 5)|int %}
 {% set pkg_dicts = h.discovery_similar_datasets(id, max_num=max_num) %}
 
-{% block similar_datasets %}
-    {% if pkg_dicts %}
+{% if pkg_dicts %}
+    {% block with_results %}
         <section class="module module-narrow module-shallow similar-datasets">
-        {% block similar_datasets_title %}
-            <h2 class="module-heading">
-                <i class="icon-medium icon-exchange"></i>
-                {{ _('Similar datasets') }}
-            </h2>
-        {% endblock %}
-        {% block similar_datasets_list %}
-            <ul class="nav nav-simple">
-                {% for pkg_dict in pkg_dicts %}
-                    {% set url = h.url_for(controller='package', action='read',
-                                           id=pkg_dict.name) %}
-                    {% set notes = h.truncate(pkg_dict.notes, 200) %}
-                    <li class="nav-item">
-                        {% block similar_dataset scoped %}
-                             <a href="{{ url }}" title="{{ notes }}">
-                                {{ pkg_dict.title }}
-                            </a>
-                        {% endblock %}
-                    </li>
-                {% endfor %}
-            </ul>
-        {% endblock %}
+            {% block title %}
+                <h2 class="module-heading">
+                    <i class="icon-medium icon-exchange"></i>
+                    {{ _('Similar datasets') }}
+                </h2>
+            {% endblock %}
+            {% block list %}
+                <ul class="nav nav-simple">
+                    {% for pkg_dict in pkg_dicts %}
+                        {% set url = h.url_for(controller='package', action='read', id=pkg_dict.name) %}
+                        {% set notes = h.truncate(pkg_dict.notes, 200) %}
+                        <li class="nav-item">
+                            {% block dataset scoped %}
+                                 <a href="{{ url }}" title="{{ notes }}">
+                                    {{ pkg_dict.title }}
+                                </a>
+                            {% endblock %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endblock %}
         </section>
-    {% endif %}
-{% endblock %}
+    {% endblock %}
+{% else %}
+    {% block without_results %}
+    {% endblock %}
+{% endif %}
 
