@@ -5,6 +5,9 @@ ckanext-discovery
 .. image:: https://travis-ci.org/stadt-karlsruhe/ckanext-discovery.svg?branch=master
     :target: https://travis-ci.org/stadt-karlsruhe/ckanext-discovery
 
+.. image:: https://coveralls.io/repos/stadt-karlsruhe/ckanext-discovery/badge.svg
+    :target: https://coveralls.io/r/stadt-karlsruhe/ckanext-discovery
+
 Open data can only be used for awesome things if it is found. CKAN_ has
 powerful built-in search tools, but for users who don't know (yet) what exactly
 they are looking for there is room for improvement.
