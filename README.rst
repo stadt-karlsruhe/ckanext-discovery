@@ -342,6 +342,14 @@ Distributed un der the GNU Affero General Public License. See the file
 ``LICENSE`` for details.
 
 
+Changes
+=======
+
+0.1.0
+-----
+* First release
+
+
 .. _CKAN: http://ckan.org
 .. _configuration INI: http://docs.ckan.org/en/latest/maintaining/configuration.html#ckan-configuration-file
 .. _package_search: http://docs.ckan.org/en/latest/api/index.html#ckan.logic.action.get.package_search
