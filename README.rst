@@ -345,6 +345,11 @@ Distributed un der the GNU Affero General Public License. See the file
 Changes
 =======
 
+0.1.1
++++++
+* Fix: The ``search_suggestions init`` paster command no longer deletes all
+  previously stored search terms.
+
 0.1.0
 +++++
 * First release
