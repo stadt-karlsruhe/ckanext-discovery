@@ -37,6 +37,11 @@ Then install the latest version of *ckanext-discovery*::
 
     pip install -e git+https://github.com/stadt-karlsruhe/ckanext-discovery#egg=ckanext-discovery
 
+In a production environment you'll probably want to install a specific
+`release version`_ instead::
+
+    pip install -e git+https://github.com/stadt-karlsruhe/ckanext-discovery@v0.1.1#egg=ckanext-discovery
+
 The extension is now installed. However, *you still need to install and configure
 those of its plugins that you want to use*. See the documentations of the
 individual plugins below for more information.
@@ -362,4 +367,5 @@ Changes
 .. _MoreLikeThisHandler: https://cwiki.apache.org/confluence/display/solr/MoreLikeThis#MoreLikeThis-ParametersfortheMoreLikeThisHandler
 .. _term vector storage: https://cwiki.apache.org/confluence/display/solr/Field+Type+Definitions+and+Properties#FieldTypeDefinitionsandProperties-FieldDefaultProperties
 .. _template snippet: http://docs.ckan.org/en/latest/theming/templates.html#snippets
+.. _release version: https://github.com/stadt-karlsruhe/ckanext-discovery/releases
 
