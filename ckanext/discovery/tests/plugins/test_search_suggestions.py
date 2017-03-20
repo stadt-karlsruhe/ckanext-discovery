@@ -16,13 +16,26 @@ import ckan.plugins.toolkit as toolkit
 import ckan.tests.helpers as helpers
 from ckan.plugins import implements, SingletonPlugin
 
-from ...plugins.search_suggestions.model import SearchTerm, CoOccurrence
-from ...plugins.search_suggestions import (SearchQuery, preprocess_search_term,
-                                           reprocess,
-                                           log as search_suggestions_log)
+from ...plugins.search_suggestions.model import (
+    create_tables,
+    SearchTerm,
+    CoOccurrence,
+)
+from ...plugins.search_suggestions import (
+    SearchQuery,
+    preprocess_search_term,
+    reprocess,
+    log as search_suggestions_log,
+)
 from ...plugins.search_suggestions.interfaces import ISearchTermPreprocessor
-from .. import (changed_config, assert_anonymous_access, with_plugin,
-                temporarily_enabled_plugin, paster, recorded_logs)
+from .. import (
+    changed_config,
+    assert_anonymous_access,
+    with_plugin,
+    temporarily_enabled_plugin,
+    paster,
+    recorded_logs,
+)
 
 
 def search_history(s=''):
@@ -500,4 +513,21 @@ class TestUI(helpers.FunctionalTestBase):
         body = response.body.decode('utf-8')
         assert_not_in('search_suggestions.css', body)
         assert_not_in('search_suggestions.js', body)
+
+
+class TestCreateTables(helpers.FunctionalTestBase):
+    '''
+    Test ``model.create_tables``.
+    '''
+    def test_existing_entries_are_kept(self):
+        search_history('''
+            dog fox
+            dog cat
+        ''')
+        create_tables()
+        eq_(SearchTerm.get_or_create(term='dog').count, 2)
+        eq_(SearchTerm.get_or_create(term='fox').count, 1)
+        eq_(SearchTerm.get_or_create(term='cat').count, 1)
+        eq_(CoOccurrence.for_words('dog', 'fox').count, 1)
+        eq_(CoOccurrence.for_words('dog', 'cat').count, 1)
 
